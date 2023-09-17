@@ -8,6 +8,10 @@ import json
 import argparse
 import time
 import math
+from Astar import AStar
+import plotting, env
+import matplotlib.pyplot as plt
+from path_smoothing import smooth_path
 import pygame
 
 # import SLAM components
@@ -113,9 +117,9 @@ def drive_to_point(waypoint, robot_pose):
     target_theta = (np.arctan2((robot_pose[1,0]-waypoint[1]),(robot_pose[0,0]-waypoint[0]))/np.pi)*180
     if target_theta < 0:
         target_theta += 360
-    print(target_theta)
+    #print(target_theta)
     target_diff = target_theta - robot_pose[2]
-    print(target_diff)
+    #print(target_diff)
     if target_diff < 0:
         target_diff += 360
     # turn towards the waypoint
@@ -156,8 +160,21 @@ def get_robot_pose():
     ####################################################
 
     return robot_pose
+
+def parse_groundtruth(fname : str) -> dict:
+    with open(fname,'r') as f:
+        # gt_dict = ast.literal_eval(f.readline())
+        gt_dict = json.load(f)
+        aruco_dict = {}
+        for key in gt_dict:
+            if key.startswith("aruco"):
+                aruco_num = int(key.strip('aruco')[:-2])
+                aruco_dict[aruco_num] = np.reshape([gt_dict[key]["x"], gt_dict[key]["y"]], (2,1))
+    return aruco_dict
+
 def world_to_gui(x):
     return int((x+1.5)*800/3)
+
 # main loop
 if __name__ == "__main__":
 
@@ -183,7 +200,7 @@ if __name__ == "__main__":
     screen = pygame.display.set_mode((screen_width, screen_height))
 
     parser = argparse.ArgumentParser("Fruit searching")
-    #parser.add_argument("--map", type=str, default='M4_true_map_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='M4_prac_map_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
@@ -207,7 +224,7 @@ if __name__ == "__main__":
     ppi = PenguinPi(args.ip,args.port)
 
     # read in the true map
-    #fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
+    fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
     #search_list = read_search_list()
     #print_target_fruits_pos(search_list, fruits_list, fruits_true_pos)
 
@@ -215,6 +232,14 @@ if __name__ == "__main__":
     robot_pose = np.array(get_robot_pose())
     running = True
     # The following is only a skeleton code for semi-auto navigation
+
+    env1 = env.Env()
+    env1.set_arena_size(3000, 3000)
+    obs_aruco = []
+    for i in range(len(aruco_true_pos)):
+        #print(aruco_true_pos[i,:])
+        env1.add_square_obs((aruco_true_pos[i,:][0]+1.5)*1000, (aruco_true_pos[i,:][1]+1.5)*1000, 180)
+
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -231,6 +256,9 @@ if __name__ == "__main__":
         rotated_rect.center = (scaled_x, scaled_y)
         # Draw the rotated robot image
         screen.blit(rotated_robot_img, rotated_rect)
+        for i in range(len(aruco_true_pos)):
+            #print(aruco_true_pos[i,:][0])
+            pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[i,:][0])-24, world_to_gui(aruco_true_pos[i,:][1])-24, 48, 48))
         pygame.display.flip()
         x,y,theta = 0.0,0.0,0.0
         x = input("X coordinate of the waypoint: ")
