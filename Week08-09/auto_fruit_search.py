@@ -12,6 +12,7 @@ from Astar import AStar
 import plotting, env
 import matplotlib.pyplot as plt
 from path_smoothing import smooth_path
+import pygame
 
 # import SLAM components
 sys.path.insert(0, "{}/slam".format(os.getcwd()))
@@ -171,10 +172,35 @@ def parse_groundtruth(fname : str) -> dict:
                 aruco_dict[aruco_num] = np.reshape([gt_dict[key]["x"], gt_dict[key]["y"]], (2,1))
     return aruco_dict
 
+def world_to_gui(x):
+    return int((x+1.5)*800/3)
+
 # main loop
 if __name__ == "__main__":
+
+    pygame.init()
+    screen_width = 800
+    screen_height = 800
+    scale = 0.5
+
+    white = (255, 255, 255)
+    black = (0, 0, 0)
+    red = (255, 0, 0)
+
+    robot_img = pygame.image.load('robot_img.png')
+    original_robot_img = pygame.transform.scale(robot_img, (50, 50))
+  # Save the original image for rotations
+
+    # Robot attributes
+    robot_rect = robot_img.get_rect()
+    robot_rect.center = (screen_width // 2, screen_height // 2)  # Starting position
+
+    # Create the Pygame window
+    pygame.display.set_caption("visualisation")
+    screen = pygame.display.set_mode((screen_width, screen_height))
+
     parser = argparse.ArgumentParser("Fruit searching")
-    parser.add_argument("--map", type=str, default='M4_true_map_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='M4_prac_map_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
@@ -191,13 +217,6 @@ if __name__ == "__main__":
     dist_coeffs = np.loadtxt(fileD, delimiter=',')
     fileB = "{}baseline.txt".format(datadir)
     baseline = np.loadtxt(fileB, delimiter=',')
-    gt_aruco = parse_groundtruth(args.map)
-    #print(gt_aruco)
-    env1 = env.Env()
-    env1.set_arena_size(3000,3000)
-    for i in range(1,11):
-        env1.add_square_obs(gt_aruco[i][0]*1000+1500, gt_aruco[i][1]*1000+1500, 100)
-    #print(env1.obs) 
 
     robot = Robot(baseline, scale, camera_matrix, dist_coeffs)
     ekf = EKF(robot)
@@ -211,12 +230,25 @@ if __name__ == "__main__":
 
     waypoint = [0.0,0.0]
     robot_pose = np.array(get_robot_pose())
-    #print(robot_pose)
-
+    running = True
     # The following is only a skeleton code for semi-auto navigation
-    while True:
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
         # enter the waypoints
         # instead of manually enter waypoints, you can give coordinates by clicking on a map, see camera_calibration.py from M2
+        #print(theta_pygame)
+        screen.fill(white)
+            # Rotate the robot image
+
+        rotated_robot_img = pygame.transform.rotate(original_robot_img, int(np.squeeze(robot_pose[2])))
+        rotated_rect = rotated_robot_img.get_rect()
+        scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
+        rotated_rect.center = (scaled_x, scaled_y)
+        # Draw the rotated robot image
+        screen.blit(rotated_robot_img, rotated_rect)
+        pygame.display.flip()
         x,y,theta = 0.0,0.0,0.0
         x = input("X coordinate of the waypoint: ")
         try:
@@ -230,20 +262,32 @@ if __name__ == "__main__":
         except ValueError:
             print("Please enter a number.")
             continue
-        
-        # estimate the robot's pose
-        
+        screen.fill(white)
+        screen.blit(rotated_robot_img, rotated_rect)
+        pygame.draw.line(screen, red, (scaled_x, scaled_y), (int((y+1.5)*800/3),int((x+1.5)*800/3)), 5)
+        pygame.display.flip()
         # robot drives to the waypoint
         waypoint = [x,y]
         drive_to_point(waypoint,robot_pose)
         #new_pose = np.array([waypoint[0], waypoint[1],np.arctan2((robot_pose[1]-waypoint[1]),robot_pose[0]-waypoint[0])/np.pi*180])
         #reshape = new_pose.reshape((3,1))
         #ekf.set_state_vector(reshape)
+        # estimate the robot's pose
         robot_pose = get_robot_pose()
         print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
-
+        pygame.display.flip()
+        screen.fill(white)
+            # Rotate the robot image
+        rotated_robot_img = pygame.transform.rotate(original_robot_img, robot_pose[2])
+        rotated_rect = rotated_robot_img.get_rect()
+        scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
+        rotated_rect.center = (scaled_x, scaled_y)
+        # Draw the rotated robot image
+        screen.blit(rotated_robot_img, rotated_rect)
+        pygame.display.flip()
         # exit
         ppi.set_velocity([0, 0])
         uInput = input("Add a new waypoint? [Y/N]")
         if uInput == 'N':
             break
+    pygame.quit()
