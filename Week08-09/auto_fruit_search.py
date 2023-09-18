@@ -186,6 +186,18 @@ def parse_groundtruth(fname : str) -> dict:
 def world_to_gui(x):
     return int((x+1.5)*800/3)
 
+def calc_new_waypoint(waypoint):
+    new_waypoint = (0.0,0.0)
+    #print(int((robot_pose[0,0]+1.5)*1000),int((robot_pose[1,0]+1.5)*1000))
+    #print(waypoint)
+    distance = np.sqrt((((robot_pose[0,0]+1.5)*1000)-waypoint[0])**2+(((robot_pose[1,0]+1.5)*1000)-waypoint[1])**2)
+    #print(distance)
+    new_distance = distance - 100
+    #print(new_distance)
+    new_waypoint = (int((waypoint[0]-((robot_pose[0,0]+1.5)*1000))*(new_distance/distance) + ((robot_pose[0,0]+1.5)*1000)),int((waypoint[1]-((robot_pose[1,0]+1.5)*1000))*(new_distance/distance) + ((robot_pose[1,0]+1.5)*1000)))
+    #print(new_waypoint)
+    return new_waypoint
+
 # main loop
 if __name__ == "__main__":
 
@@ -202,6 +214,7 @@ if __name__ == "__main__":
 
     robot_img = pygame.image.load('robot_img.png')
     original_robot_img = pygame.transform.scale(robot_img, (50, 50))
+    durian_img = pygame.transform.scale(pygame.image.load('durian_img.png'), (24, 24))
   # Save the original image for rotations
 
     # Robot attributes
@@ -256,10 +269,13 @@ if __name__ == "__main__":
     for i in range(len(aruco_true_pos)):
         #print(aruco_true_pos[i,:])
         env1.add_square_obs((aruco_true_pos[i,:][0]+1.5)*1000, (aruco_true_pos[i,:][1]+1.5)*1000, 200)
-    print(avoid_list)
-    for i in range(len(avoid_list)):
+    for i in range(len(fruits_true_pos)):
         #print(aruco_true_pos[i,:])
-        env1.add_square_obs((avoid_list[i][0]+1.5)*1000, (avoid_list[i][1]+1.5)*1000, 180)
+        env1.add_square_obs((fruits_true_pos[i,:][0]+1.5)*1000, (fruits_true_pos[i,:][1]+1.5)*1000, 100)
+    # print(avoid_list)
+    # for i in range(len(avoid_list)):
+    #     #print(aruco_true_pos[i,:])
+    #     env1.add_square_obs((avoid_list[i][0]+1.5)*1000, (avoid_list[i][1]+1.5)*1000, 180)
 
     #obs_aruco = []
     #for i in range(len(aruco_true_pos)):
@@ -285,9 +301,9 @@ if __name__ == "__main__":
         for i in range(len(aruco_true_pos)):
             #print(aruco_true_pos[i,:][0])
             pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[i,:][1])-24, world_to_gui(aruco_true_pos[i,:][0])-24, 48, 48))
-        for i in range(len(fruits_true_pos)):
+        for j in range(len(fruits_true_pos)):
             #print(aruco_true_pos[i,:][0])
-            pygame.draw.rect(screen, purple, (world_to_gui(fruits_true_pos[i,:][1])-24, world_to_gui(fruits_true_pos[i,:][0])-24, 48, 48))
+            screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])))
         pygame.display.flip()
 
         waypoints = [(1500,1500)]
@@ -298,7 +314,11 @@ if __name__ == "__main__":
 
         #print(waypoints)
         for i in range(len(waypoints)-1):
-            astar = AStar(waypoints[i], waypoints[i+1], "euclidean", env1)
+            #print(waypoints[i])
+            #print(int((robot_pose[0,0]+1.5)*1000),int((robot_pose[1,0]+1.5)*1000))
+            waypoints[i+1] = calc_new_waypoint(waypoints[i+1])
+            print(waypoints[i+1])
+            astar = AStar((((robot_pose[0,0]+1.5)*1000),((robot_pose[1,0]+1.5)*1000)), waypoints[i+1], "euclidean", env1)
             path, visited = astar.searching()
             smoothed_path = smooth_path(path)
             print(smoothed_path)
@@ -309,7 +329,8 @@ if __name__ == "__main__":
                 pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[j,:][1])-24, world_to_gui(aruco_true_pos[j,:][0])-24, 48, 48))
             for j in range(len(fruits_true_pos)):
             #print(aruco_true_pos[i,:][0])
-                pygame.draw.rect(screen, purple, (world_to_gui(fruits_true_pos[j,:][1])-24, world_to_gui(fruits_true_pos[j,:][0])-24, 48, 48))
+                screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])))
+                #pygame.draw.rect(screen, purple, (world_to_gui(fruits_true_pos[j,:][1])-24, world_to_gui(fruits_true_pos[j,:][0])-12, 24, 24))
             pygame.draw.line(screen, red, (scaled_x, scaled_y), (waypoints[i+1][1]/30*8,waypoints[i+1][0]/30*8), 5)
             for j in range(len(smoothed_path)-1):
                 pygame.draw.line(screen, blue, (int(smoothed_path[j][1]*800/3000),int(smoothed_path[j][0]*800/3000)), (int(smoothed_path[j+1][1]*800/3000),int(smoothed_path[j+1][0]*800/3000)), 5)
@@ -334,7 +355,7 @@ if __name__ == "__main__":
                 pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[j,:][1])-24, world_to_gui(aruco_true_pos[j,:][0])-24, 48, 48))
             for j in range(len(fruits_true_pos)):
             #print(aruco_true_pos[i,:][0])
-                pygame.draw.rect(screen, purple, (world_to_gui(fruits_true_pos[j,:][1])-24, world_to_gui(fruits_true_pos[j,:][0])-24, 48, 48))
+                screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])))
             pygame.display.flip()
         #x,y,theta = 0.0,0.0,0.0
         # x = input("X coordinate of the waypoint: ")
