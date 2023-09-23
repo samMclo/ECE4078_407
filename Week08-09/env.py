@@ -31,3 +31,12 @@ class Env:
         for i in range(int(side_length)):
             for j in range(int(side_length)):
                 self.obs.add((bottom_left_x + i, bottom_left_y +j))
+
+    def remove_square_obs(self, center_x, center_y, side_length):
+        bottom_left_x = int(center_x - side_length // 2)
+        bottom_left_y = int(center_y - side_length // 2)
+
+        for i in range(int(side_length)):
+            for j in range(int(side_length)):
+                self.obs.remove((bottom_left_x + i, bottom_left_y + j))
+
