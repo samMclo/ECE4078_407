@@ -1,5 +1,4 @@
-lemon
-lime
-garlic
 tomato
-pumpkin
+lemon
+capsicum
+lime

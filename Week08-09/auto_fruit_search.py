@@ -209,7 +209,7 @@ def drive_to_point(waypoint, robot_pose, ekfvar):
     distance_to_goal = get_distance_to_goal(waypoint, robot_pose)
     ppi.set_velocity([0,0])
     turn_vel = 5
-    wheel_vel = 35 # tick
+    wheel_vel = 25 # tick
     target_theta = np.arctan2((waypoint[1]-robot_pose[1]),(waypoint[0]-robot_pose[0]))
     print(target_theta)
     if target_theta < 0:
@@ -341,7 +341,7 @@ def calc_new_waypoint2(start, end):
     #print(waypoint)
     distance = np.sqrt((start[0]-end[0])**2+(start[1]-end[1])**2)
     #print(distance)
-    new_distance = distance - 100
+    new_distance = distance - 200
     #print(new_distance)
     new_waypoint = (int((end[0]-start[0])*(new_distance/distance) + start[0]),int((end[1]-start[1])*(new_distance/distance) + start[1]))
     #print(new_waypoint)
@@ -364,9 +364,9 @@ def rotate_to_centre(robot_pose, ekfvar):
     # print(robot_pose)
     #distance_to_goal = get_distance_to_goal(waypoint, robot_pose)
     ppi.set_velocity([0,0])
-    turn_vel = 5
+    turn_vel = 10
     wheel_vel = 35 # tick
-    target_theta = np.arctan2((-robot_pose[1]),(-robot_pose[0]))
+    target_theta = np.arctan2((-robot_pose[1]),(-robot_pose[0]))#+np.pi/8
     print(target_theta)
     if target_theta < 0:
         target_theta += 2*np.pi
@@ -469,9 +469,9 @@ if __name__ == "__main__":
     lms = []
     for i in range(len(aruco_true_pos)):
         #print(aruco_true_pos[i,:])
-        new_marker = measure.Marker(aruco_true_pos[i].reshape(2,1),i+1, 0.0001*np.eye(2))
+        new_marker = measure.Marker(aruco_true_pos[i].reshape(2,1),i+1, 0.001*np.eye(2))
         lms.append(new_marker)
-        env1.add_square_obs((1.5-aruco_true_pos[i,:][0])*1000, (1.5-aruco_true_pos[i,:][1])*1000, 460)
+        env1.add_square_obs((1.5-aruco_true_pos[i,:][0])*1000, (1.5-aruco_true_pos[i,:][1])*1000, 400)
     ekfvar.add_landmarks(lms)
     for i in range(len(fruits_true_pos)):
         #print(aruco_true_pos[i,:])
@@ -540,23 +540,22 @@ if __name__ == "__main__":
             astar = AStar((int((1.5-robot_pose[0])*1000),int((1.5-robot_pose[1])*1000)), waypoints[i+1], "euclidean", env1)
             print("Finding path")
             path, visited = astar.searching()
-            smoothed_path = smooth_path(path)
-            print(smoothed_path)
             attempt = 0
             while True:
                 print("while")
-                print(smoothed_path)
+                print(path)
                 attempt += 1
-                if distance_waypoint_to_waypoint(smoothed_path[-2], waypoints[i+1]) < 400:
+                if distance_waypoint_to_waypoint(path[-2], waypoints[i+1]) < 500 and len(path) != 1:
                     print("true")
-                    smoothed_path.pop(len(smoothed_path)-1)
+                    path.pop(len(path)-1)
                 else:
                     print("break")
                     break
-                print(smoothed_path)
-            if distance_waypoint_to_waypoint(smoothed_path[-1], waypoints[i+1]) < 410:
-                smoothed_path[-1] = calc_new_waypoint2(smoothed_path[-2], smoothed_path[-1])
+            smoothed_path = smooth_path(path)
             print(smoothed_path)
+            #if distance_waypoint_to_waypoint(smoothed_path[-1], waypoints[i+1]) < 410:
+                #smoothed_path[-1] = calc_new_waypoint2(smoothed_path[-2], smoothed_path[-1])
+            #print(smoothed_path)
             scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
             screen.fill(white)
             pygame.draw.circle(screen, yellow, (int(true_waypoints[i][1]/30*8), int(true_waypoints[i][0]/30*8)), 133)
@@ -604,8 +603,10 @@ if __name__ == "__main__":
                     print("break")
                     break
                 j += 1
+            time.sleep(0.5)
             rotate_to_centre(robot_pose, ekfvar)
-            get_robot_pose(aruco_true_pos, ekfvar)
+            time.sleep(0.5)
+            robot_pose = get_robot_pose(aruco_true_pos, ekfvar)
             print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
             #pygame.display.flip()
             screen.fill(white)
