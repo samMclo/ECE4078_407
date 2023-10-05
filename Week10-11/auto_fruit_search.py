@@ -467,15 +467,19 @@ if __name__ == "__main__":
     env1.set_arena_size(3000, 3000)
     #obs_aruco = []
     lms = []
+    ARUCO_OBS = 400
+    FRUIT_OBS = 375
     for i in range(len(aruco_true_pos)):
         #print(aruco_true_pos[i,:])
         new_marker = measure.Marker(aruco_true_pos[i].reshape(2,1),i+1, 0.001*np.eye(2))
         lms.append(new_marker)
-        env1.add_square_obs((1.5-aruco_true_pos[i,:][0])*1000, (1.5-aruco_true_pos[i,:][1])*1000, 400)
+        env1.add_square_obs((1.5-aruco_true_pos[i,:][0])*1000, (1.5-aruco_true_pos[i,:][1])*1000, ARUCO_OBS)
     ekfvar.add_landmarks(lms)
     for i in range(len(fruits_true_pos)):
         #print(aruco_true_pos[i,:])
-        env1.add_square_obs(int(1500-fruits_true_pos[i,:][0]*1000), int(1500-fruits_true_pos[i,:][1]*1000),375)
+        env1.add_square_obs(int(1500-fruits_true_pos[i,:][0]*1000), int(1500-fruits_true_pos[i,:][1]*1000), FRUIT_OBS)
+
+    threshold_stopping = input("Enter stopping distance in mm: ")
 
     
     ARUCO_SCREEN_SIZE = 22
@@ -533,7 +537,7 @@ if __name__ == "__main__":
             #print(int((robot_pose[0,0]+1.5)*1000),int((robot_pose[1,0]+1.5)*1000))
             #waypoints[i+1] = calc_new_waypoint(waypoints[i+1], robot_pose)
             print(waypoints[i+1])
-            env1.remove_square_obs(waypoints[i][0], waypoints[i][1], 374)
+            env1.remove_square_obs(waypoints[i][0], waypoints[i][1], FRUIT_OBS)
             print("obs removed")
             #print(waypoints[i+1])
             #pose_in_
@@ -545,7 +549,7 @@ if __name__ == "__main__":
                 print("while")
                 print(path)
                 attempt += 1
-                if distance_waypoint_to_waypoint(path[-2], waypoints[i+1]) < 450 and len(path) != 1:
+                if distance_waypoint_to_waypoint(path[-2], waypoints[i+1]) < threshold_stopping and len(path) != 1:
                     print("true")
                     path.pop(len(path)-1)
                 else:
