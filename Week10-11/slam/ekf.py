@@ -112,7 +112,7 @@ class EKF:
             x, y = self.robot.state[0:2,0]
             x1, y1 = measurements[i].position[0:2,0]
             dist = np.sqrt((x-x1)**2 + (y-y1)**2)
-            scaling = (dist + 1)*0.35
+            scaling = (dist + 1)*0.345
             R[2*i:2*i+2,2*i:2*i+2] = scaling * measurements[i].covariance
 
         # Compute own measurements
@@ -139,11 +139,11 @@ class EKF:
     def predict_covariance(self, raw_drive_meas):
         n = self.number_landmarks()*2 + 3
         Q = np.zeros((n,n))
-        Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas)+ 0.01*np.eye(3)
+        Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas)+ 0.001*np.eye(3)
         if raw_drive_meas.left_speed == raw_drive_meas.right_speed:
             Q[0:3,0:3] += 0.0012*np.eye(3)
         else:
-            Q[0:3,0:3] += 0.0024*np.eye(3)
+            Q[0:3,0:3] += 0.0018*np.eye(3)
 
         return Q
 

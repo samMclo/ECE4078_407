@@ -282,7 +282,7 @@ def get_robot_pose(aruco_true_pos, ekfvar, from_true_map=False):
         print("landmarks detected")
         print([lm.position for lm in lms])
         #ekfvar.add_landmarks(lms) #Is this needed
-        ekfvar.update(lms)
+        #ekfvar.update(lms)
         pose = ekfvar.get_state_vector()[0:3,0]
         print(pose)
         '''if pose[2] > 2*np.pi:
@@ -351,7 +351,7 @@ def distance_to_waypoint(waypoint, robot_pose):
     return np.sqrt((((1.5-robot_pose[0])*1000)-waypoint[0])**2+(((1.5-robot_pose[1])*1000)-waypoint[1])**2)
 
 def distance_waypoint_to_waypoint(start, end):
-    return np.sqrt((start[0]-end[0])**2+(start[1]-end[1])**2)
+    return int(np.sqrt((start[0]-end[0])**2+(start[1]-end[1])**2))
 
 def within_waypoint(waypoint, robot_pose):
     if distance_to_waypoint(waypoint, robot_pose) < 0.3:
@@ -423,7 +423,7 @@ if __name__ == "__main__":
     screen = pygame.display.set_mode((screen_width, screen_height))
 
     parser = argparse.ArgumentParser("Fruit searching")
-    parser.add_argument("--map", type=str, default='M4_prac_map_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='Map.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
@@ -467,8 +467,8 @@ if __name__ == "__main__":
     env1.set_arena_size(3000, 3000)
     #obs_aruco = []
     lms = []
-    ARUCO_OBS = 400
-    FRUIT_OBS = 375
+    ARUCO_OBS = int(input("Enter aruco size: "))
+    FRUIT_OBS = int(input("Enter fruit size: "))
     for i in range(len(aruco_true_pos)):
         #print(aruco_true_pos[i,:])
         new_marker = measure.Marker(aruco_true_pos[i].reshape(2,1),i+1, 0.001*np.eye(2))
@@ -517,7 +517,7 @@ if __name__ == "__main__":
                     #true_waypoints.append((int(1500-fruits_true_pos[i][0]*1000), int(1500-fruits_true_pos[i][1]*1000)))
         for i in range(len(waypoints)):
             #print((world_to_gui(true_waypoints[i][1]), world_to_gui(true_waypoints[i][0])))
-            pygame.draw.circle(screen, yellow, (int(true_waypoints[i][1]/30*8), int(true_waypoints[i][0]/30*8)), 133)
+            pygame.draw.circle(screen, yellow, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)), 133)
         for i in range(len(fruits_true_pos)):
             #print(aruco_true_pos[i,:][0])
             #pygame.draw.circle(screen, yellow, (world_to_gui(fruits_true_pos[i,:][1]), world_to_gui(fruits_true_pos[j,:][0])), 133)
@@ -537,7 +537,7 @@ if __name__ == "__main__":
             #print(int((robot_pose[0,0]+1.5)*1000),int((robot_pose[1,0]+1.5)*1000))
             #waypoints[i+1] = calc_new_waypoint(waypoints[i+1], robot_pose)
             print(waypoints[i+1])
-            env1.remove_square_obs(waypoints[i][0], waypoints[i][1], FRUIT_OBS)
+            env1.remove_square_obs(waypoints[i+1][0], waypoints[i+1][1], FRUIT_OBS)
             print("obs removed")
             #print(waypoints[i+1])
             #pose_in_
@@ -546,14 +546,15 @@ if __name__ == "__main__":
             path, visited = astar.searching()
             attempt = 0
             while True:
-                print("while")
-                print(path)
-                attempt += 1
-                if distance_waypoint_to_waypoint(path[-2], waypoints[i+1]) < threshold_stopping and len(path) != 1:
-                    print("true")
+                #print("while")
+                path_length = len(path)
+                #attempt += 1
+            
+                if (distance_waypoint_to_waypoint(path[-2], waypoints[i+1]) < int(threshold_stopping) )and (path_length > 2):
+                    #print("true")
                     path.pop(len(path)-1)
                 else:
-                    print("break")
+                    #print("break")
                     break
             smoothed_path = smooth_path(path)
             print(smoothed_path)
@@ -562,7 +563,7 @@ if __name__ == "__main__":
             #print(smoothed_path)
             scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
             screen.fill(white)
-            pygame.draw.circle(screen, yellow, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)), 133)
+            pygame.draw.circle(screen, yellow, (int(waypoints[i+1][1]/30*8), int(waypoints[i+1][0]/30*8)), 133)
             for j in range(len(fruits_true_pos)):
             #print(aruco_true_pos[i,:][0])
                 screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])))
@@ -590,7 +591,7 @@ if __name__ == "__main__":
                 scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
                 rotated_rect.center = (scaled_x, scaled_y)
                 # Draw the rotated robot image
-                pygame.draw.circle(screen, yellow, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)), 133)
+                pygame.draw.circle(screen, yellow, (int(waypoints[i+1][1]/30*8), int(waypoints[i+1][0]/30*8)), 133)
                 for k in range(len(fruits_true_pos)):
                 #print(aruco_true_pos[i,:][0])
                     #pygame.draw.circle(screen, yellow, (world_to_gui(fruits_true_pos[k,:][1]), world_to_gui(fruits_true_pos[k,:][0])), 133)
@@ -620,7 +621,7 @@ if __name__ == "__main__":
             scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
             rotated_rect.center = (scaled_x, scaled_y)
             # Draw the rotated robot image
-            pygame.draw.circle(screen, yellow, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)), 133)
+            pygame.draw.circle(screen, yellow, (int(waypoints[i+1][1]/30*8), int(waypoints[i+1][0]/30*8)), 133)
             for j in range(len(fruits_true_pos)):
             #print(aruco_true_pos[i,:][0])
                 #pygame.draw.circle(screen, yellow, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])), 133)
@@ -630,7 +631,7 @@ if __name__ == "__main__":
                 pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[j,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[j,:][0])- ARUCO_SCREEN_SIZE//2, ARUCO_SCREEN_SIZE, ARUCO_SCREEN_SIZE))
             screen.blit(rotated_robot_img, rotated_rect)
             pygame.display.flip()
-            env1.add_square_obs(waypoints[i][0], waypoints[i][1], 230)
+            env1.add_square_obs(waypoints[i+1][0], waypoints[i+1][1], 230)
             print("Target {} reached".format(i+1))
         #x,y,theta = 0.0,0.0,0.0
         # x = input("X coordinate of the waypoint: ")
