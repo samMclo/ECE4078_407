@@ -87,10 +87,10 @@ class Detector:
 if __name__ == '__main__':
     # get current script directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    for i in range(1,3):
+    for i in range(12):
         yolo = Detector(f'{script_dir}/model/yolov8_model.pt')
 
-        img = cv2.imread(f'{script_dir}/test/test_image_{i}.png')
+        img = cv2.imread(f'{script_dir}/test/pred_{i}.png')
 
         bboxes, img_out = yolo.detect_single_image(img)
 

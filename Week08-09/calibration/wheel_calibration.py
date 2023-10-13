@@ -15,7 +15,7 @@ def calibrateWheelRadius():
     ##########################################
     # Feel free to change the range / step
     ##########################################
-    wheel_velocities_range = range(20, 80, 10)
+    wheel_velocities_range = range(20, 51, 5)
     delta_times = []
 
     for wheel_vel in wheel_velocities_range:
@@ -60,7 +60,7 @@ def calibrateBaseline(scale):
     ##########################################
     # Feel free to change the range / step
     ##########################################
-    wheel_velocities_range = range(5, 60, 10)
+    wheel_velocities_range = range(5, 26, 5)
     delta_times = []
 
     for wheel_vel in wheel_velocities_range:

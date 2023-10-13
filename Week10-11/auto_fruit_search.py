@@ -208,26 +208,29 @@ def drive_to_point(waypoint, robot_pose, ekfvar):
     # print(robot_pose)
     distance_to_goal = get_distance_to_goal(waypoint, robot_pose)
     ppi.set_velocity([0,0])
-    turn_vel = 5
-    wheel_vel = 25 # tick
+    turn_vel = 25
+    wheel_vel = 50 # tick
     target_theta = np.arctan2((waypoint[1]-robot_pose[1]),(waypoint[0]-robot_pose[0]))
     print(target_theta)
     if target_theta < 0:
         target_theta += 2*np.pi
     #print(target_theta)
     target_diff = target_theta - robot_pose[2]
-    #print(target_diff)
-    if target_diff < 0:
-        target_diff += 2*np.pi
+    print("target diff before adjustment: " + str(target_diff))
+    while target_diff < 0 or target_diff > 2*np.pi:
+        if target_diff < 0:
+            target_diff += 2*np.pi
+        elif target_diff > 2*np.pi:
+            target_diff -= 2*np.pi
     # turn towards the waypoint
-    print(target_diff)
+    print("target diff after adjustment: " + str(target_diff))
     if target_diff > np.pi:
         turn_time = float(baseline*np.abs(2*np.pi-target_diff)/(scale*turn_vel*2)) # replace with your calculation
-        print("Turning for {:.2f} seconds".format(turn_time))
+        print("Turning for right {:.2f} seconds".format(turn_time))
         lv, rv = ppi.set_velocity([0, -1], turning_tick=turn_vel, time=turn_time)
     else:
         turn_time = float(baseline*np.abs(target_diff)/(scale*turn_vel*2)) # replace with your calculation
-        print("Turning for {:.2f} seconds".format(turn_time))
+        print("Turning for left {:.2f} seconds".format(turn_time))
         lv, rv = ppi.set_velocity([0, 1], turning_tick=turn_vel, time=turn_time)
     #print(lv)
     #print(rv)
@@ -364,7 +367,7 @@ def rotate_to_centre(robot_pose, ekfvar):
     # print(robot_pose)
     #distance_to_goal = get_distance_to_goal(waypoint, robot_pose)
     ppi.set_velocity([0,0])
-    turn_vel = 10
+    turn_vel = operate.turning_tick
     wheel_vel = 35 # tick
     target_theta = np.arctan2((-robot_pose[1]),(-robot_pose[0]))#+np.pi/8
     print(target_theta)
@@ -373,17 +376,20 @@ def rotate_to_centre(robot_pose, ekfvar):
     #print(target_theta)
     target_diff = target_theta - robot_pose[2]
     #print(target_diff)
-    if target_diff < 0:
-        target_diff += 2*np.pi
+    while target_diff < 0 or target_diff > 2*np.pi:
+        if target_diff < 0:
+            target_diff += 2*np.pi
+        elif target_diff > 0:
+            target_diff -= 2*np.pi
     # turn towards the waypoint
     print(target_diff)
     if target_diff > np.pi:
         turn_time = float(baseline*np.abs(2*np.pi-target_diff)/(scale*turn_vel*2)) # replace with your calculation
-        print("Turning for {:.2f} seconds".format(turn_time))
+        print("Turning right for {:.2f} seconds".format(turn_time))
         lv, rv = ppi.set_velocity([0, -1], turning_tick=turn_vel, time=turn_time)
     else:
         turn_time = float(baseline*np.abs(target_diff)/(scale*turn_vel*2)) # replace with your calculation
-        print("Turning for {:.2f} seconds".format(turn_time))
+        print("Turning left for {:.2f} seconds".format(turn_time))
         lv, rv = ppi.set_velocity([0, 1], turning_tick=turn_vel, time=turn_time)
     #print(lv)
     #print(rv)
