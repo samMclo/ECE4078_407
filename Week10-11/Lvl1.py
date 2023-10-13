@@ -105,62 +105,101 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
 # note that this function requires your camera and wheel calibration parameters from M2, and the "util" folder from M1
 # fully automatic navigation:
 # try developing a path-finding algorithm that produces the waypoints automatically
-def drive_to_point(waypoint, robot_pose):
-    # imports camera / wheel calibration parameters 
-    
-    ####################################################
-    # TODO: replace with your codes to make the robot drive to the waypoint
-    # One simple strategy is to first turn on the spot facing the waypoint,
-    # then drive straight to the way point
-
-    wheel_vel = 30 # tick
-    target_theta = (np.arctan2((robot_pose[1,0]-waypoint[1]),(robot_pose[0,0]-waypoint[0]))/np.pi)*180
+def drive_to_point(waypoint):
+    robot_pose = get_robot_pose(ekfvar)
+    # print("Robot_pose:")
+    # print(robot_pose)
+    ppi.set_velocity([0,0])
+    turn_vel = 25
+    wheel_vel = 50 # tick
+    target_theta = np.arctan2((waypoint[1]-robot_pose[1]),(waypoint[0]-robot_pose[0]))
+    print(target_theta)
     if target_theta < 0:
-        target_theta += 360
+        target_theta += 2*np.pi
     #print(target_theta)
     target_diff = target_theta - robot_pose[2]
-    #print(target_diff)
-    if target_diff < 0:
-        target_diff += 360
+    print("target diff before adjustment: " + str(target_diff))
+    while target_diff < 0 or target_diff > 2*np.pi:
+        if target_diff < 0:
+            target_diff += 2*np.pi
+        elif target_diff > 2*np.pi:
+            target_diff -= 2*np.pi
     # turn towards the waypoint
-    
-    if target_diff > 180:
-        turn_time = float(baseline*np.abs(360-target_diff)*np.pi/(scale*wheel_vel*360)) # replace with your calculation
-        print("Turning for {:.2f} seconds".format(turn_time))
-        ppi.set_velocity([0, -1], turning_tick=wheel_vel, time=turn_time)
+    print("target diff after adjustment: " + str(target_diff))
+    if target_diff > np.pi:
+        turn_time = float(baseline*np.abs(2*np.pi-target_diff)/(scale*turn_vel*2)) # replace with your calculation
+        print("Turning for right {:.2f} seconds".format(turn_time))
+        lv, rv = ppi.set_velocity([0, -1], turning_tick=turn_vel, time=turn_time)
     else:
-        turn_time = float(baseline*np.abs(target_diff)*np.pi/(scale*wheel_vel*360)) # replace with your calculation
-        print("Turning for {:.2f} seconds".format(turn_time))
-        ppi.set_velocity([0, 1], turning_tick=wheel_vel, time=turn_time)
-
+        turn_time = float(baseline*np.abs(target_diff)/(scale*turn_vel*2)) # replace with your calculation
+        print("Turning for left {:.2f} seconds".format(turn_time))
+        lv, rv = ppi.set_velocity([0, 1], turning_tick=turn_vel, time=turn_time)
+    #print(lv)
+    #print(rv)
+    ppi.set_velocity([0, 0])
+    
+    drive_meas = measure.Drive(lv, -rv,turn_time)
+    ekfvar.predict(drive_meas)
+    robot_pose = get_robot_pose(ekfvar)
+    
     # calculate distance_travel
-    distance_travel = np.sqrt((robot_pose[0,0]-waypoint[0])**2+(robot_pose[1,0]-waypoint[1])**2)
+    distance_travel = np.sqrt((robot_pose[0]-waypoint[0])**2+(robot_pose[1]-waypoint[1])**2)
     #print(distance_travel)
     
     # after turning, drive straight to the waypoint
     drive_time = float(distance_travel/(wheel_vel*scale)) # replace with your calculation
     print("Driving for {:.2f} seconds".format(drive_time))
-    ppi.set_velocity([1, 0], tick=wheel_vel, time=drive_time)
+    lv, rv = ppi.set_velocity([1, 0], tick=wheel_vel, time=drive_time)
+    #print(lv)
+    #print(rv)
+    drive_meas = measure.Drive(lv, -rv,drive_time)
+    ekfvar.predict(drive_meas)
+    robot_pose = get_robot_pose( ekfvar)
+    ppi.set_velocity([0,0])
     ####################################################
-    new_pose = np.array([waypoint[0],waypoint[1],target_theta])
-    new_pose = new_pose.reshape((3,1))
+    #new_pose = np.array([waypoint[0],waypoint[1],target_theta])
+    #new_pose = new_pose.reshape((3,1))
     
-    ekf.set_state_vector(new_pose)
+    #ekf.set_state_vector(new_pose)
 
     print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
 
 
-def get_robot_pose():
+def get_robot_pose(ekfvar):
     ####################################################
     # TODO: replace with your codes to estimate the pose of the robot
     # We STRONGLY RECOMMEND you to use your SLAM code from M2 here
 
     # update the robot pose [x,y,theta]
-    robot_pose = ekf.get_state_vector() # replace with your calculation
-    ####################################################
+    #image = ppi.get_image()
+    #lms, aruco_img = aruco_det.detect_marker_positions(image)
+    # call_umeyama(lms, aruco_true_pos) -> still needs work
+    
+
+        #ekfvar.add_landmarks(lms) #Is this needed
+        #ekfvar.update(lms)
+    pose = ekfvar.get_state_vector()[0:3,0]
+    print(pose)
+
+    ekfvar.robot.state[2] = (pose[2]+2*np.pi)%(2*np.pi)
+    pose = ekfvar.get_state_vector()[0:3]
+
+    #pose[2] = pose[2]/180*np.pi
+    #print(pose)
+    #print(pose[2][0])
+    #pose[2] = pose[2]*180/np.pi
+    # update the robot pose [x,y,theta]
+    while pose[2][0] < 0:
+        pose[2][0] += 2*np.pi
+    # while pose[2][0] > 2*np.pi:
+    #     pose[2][0] -= 2*np.pi
+    '''while pose[2] > 2*np.pi:
+        pose[2] -= 2*np.pi'''
+
+    robot_pose = [pose[0][0], pose[1][0], pose[2][0]]
+    print("Pose: " + str(robot_pose))
 
     return robot_pose
-
 def parse_groundtruth(fname : str) -> dict:
     with open(fname,'r') as f:
         # gt_dict = ast.literal_eval(f.readline())
@@ -189,6 +228,9 @@ if __name__ == "__main__":
 
     robot_img = pygame.image.load('robot_img.png')
     original_robot_img = pygame.transform.scale(robot_img, (50, 50))
+    robot_img = pygame.image.load('robot_img.png')
+    original_robot_img = pygame.transform.scale(robot_img, (48, 48))
+    durian_img = pygame.transform.scale(pygame.image.load('durian_img.png'), (22, 22))
   # Save the original image for rotations
 
     # Robot attributes
@@ -219,7 +261,7 @@ if __name__ == "__main__":
     baseline = np.loadtxt(fileB, delimiter=',')
 
     robot = Robot(baseline, scale, camera_matrix, dist_coeffs)
-    ekf = EKF(robot)
+    ekfvar = EKF(robot)
 
     ppi = PenguinPi(args.ip,args.port)
 
@@ -229,7 +271,7 @@ if __name__ == "__main__":
     #print_target_fruits_pos(search_list, fruits_list, fruits_true_pos)
 
     waypoint = [0.0,0.0]
-    robot_pose = np.array(get_robot_pose())
+    robot_pose = get_robot_pose(ekfvar)
     running = True
     # The following is only a skeleton code for semi-auto navigation
 
@@ -284,7 +326,7 @@ if __name__ == "__main__":
         #reshape = new_pose.reshape((3,1))
         #ekf.set_state_vector(reshape)
         # estimate the robot's pose
-        robot_pose = get_robot_pose()
+        robot_pose = get_robot_pose(ekfvar)
         print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
         pygame.display.flip()
         screen.fill(white)
