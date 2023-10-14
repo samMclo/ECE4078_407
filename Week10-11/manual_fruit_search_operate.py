@@ -23,10 +23,11 @@ from slam.ekf import EKF
 from slam.robot import Robot
 import slam.aruco_detector as aruco
 from YOLO.detector import Detector
+#from operate_yolo_search import Operate
 
 # import utility functions
 sys.path.insert(0, "{}/util")
-import util.DatasetHandler as dh    # save/load functions
+import util.DatasetHandler as dh 
 from pibot import PenguinPi
 import measure as measure
 
@@ -511,65 +512,13 @@ def get_desired_heading(waypoint, robot_pose):
 
     return desired_heading
 
-def drive_to_point(waypoint, robot_pose):
+def drive_to_point(waypoint, robot_pose, ekfvar):
     # imports camera / wheel calibration parameters 
     
     ####################################################
     # TODO: replace with your codes to make the robot drive to the waypoint
     # One simple strategy is to first turn on the spot facing the waypoint,
     # then drive straight to the way point
-    # wheel_vel = 30 # tick
-    # wheel_w = 5
-    # K_pv = 1
-    # K_pw = 1
-    
-    # # get distance to waypoint
-    # distance_to_goal = get_distance_to_goal(waypoint, robot_pose)
-    # # print("Distance_to_goal:")
-    # # print(distance_to_goal)
-    # #print("Robot_pose:")
-    # #print(robot_pose)
-
-    # # get desired heading
-    # desired_heading = get_desired_heading(waypoint, robot_pose)
-    # print("Desired_heading:")
-    # print(desired_heading)
-
-    # rot_threshold = 0.05 # might want to decrease for better acc
-    # dist_threshold = 0.05
-
-    # #while abs(orientation_diff) > rot_threshold:
-    # w_k = K_pw*desired_heading
-    # if desired_heading <0:
-    #     r = -1
-    # else:
-    #     r = 1
-    # turn_time =  abs(baseline/(scale*wheel_w)*(w_k/np.pi))
-    # # print("Turn time: ")
-    # # print(turn_time)
-    # lv, rv = ppi.set_velocity([0, r], turning_tick=wheel_w, time=turn_time)
-    # # print('left-right v:',lv,rv)
-    
-    # drive_meas = measure.Drive(lv, rv,turn_time, 1, 1)
-    # ekf.predict(drive_meas)
-    # robot_pose = get_robot_pose(aruco_true_pos, ekfvar)
-    # # print("Robot_pose:")
-    # # print(robot_pose)
-    # #desired_heading = get_desired_heading(waypoint, robot_pose)
-    # orientation_diff = desired_heading - robot_pose[2]
-    # # print(orientation_diff)
-    # ppi.set_velocity([0,0])
-        
-           
-    #while distance_to_goal > dist_threshold:
-    # v_k = K_pv*distance_to_goal
-    # drive_time = v_k/(scale*wheel_vel)
-    # #print(v_k, scale, wheel_vel, waypoint, robot_pose)
-    # #print("Drive time: ")
-    # #print(drive_time)
-    # lv, rv = ppi.set_velocity([1, 0], tick=wheel_vel, time=drive_time)
-    # drive_meas = measure.Drive(lv, rv,drive_time, 1, 1)
-    # ekf.predict(drive_meas)
 
     robot_pose = get_robot_pose()
     Kt, Kd = 1, 1
@@ -625,7 +574,6 @@ def drive_to_point(waypoint, robot_pose):
     operate.update_slam(drive_meas)
     operate.control([0, 0], 0.1)
     robot_pose = get_robot_pose()
-    #ppi.set_velocity([0,0])
     ####################################################
     #new_pose = np.array([waypoint[0],waypoint[1],target_theta])
     #new_pose = new_pose.reshape((3,1))
@@ -698,111 +646,10 @@ def within_waypoint(waypoint, robot_pose):
         return True
     return False
 
-def rotate_to_centre(robot_pose):
-    robot_pose = get_robot_pose()
-    # print("Robot_pose:")
-    # print(robot_pose)
-    #distance_to_goal = get_distance_to_goal(waypoint, robot_pose)
-    #ppi.set_velocity([0,0])
-    turn_vel = operate.turning_tick
-    wheel_vel = 35 # tick
-    target_theta = np.arctan2((-robot_pose[1]),(-robot_pose[0]))
-    print(target_theta)
-    if target_theta < 0:
-        target_theta += 2*np.pi
-    #print(target_theta)
-    target_diff = target_theta - robot_pose[2]
-    #print(target_diff)
-    if target_diff < 0:
-        target_diff += 2*np.pi
-    # turn towards the waypoint
-    print(target_diff)
-    if target_diff > np.pi:
-        turn_time = float(baseline*np.abs(2*np.pi-target_diff)/(scale*turn_vel*2)) # replace with your calculation
-        print("Turning right for {:.2f} seconds".format(turn_time))
-        drive_meas = operate.control([0, -1], turn_time)
-    else:
-        turn_time = float(baseline*np.abs(target_diff)/(scale*turn_vel*2)) # replace with your calculation
-        print("Turning left for {:.2f} seconds".format(turn_time))
-        drive_meas = operate.control([0, 1], turn_time)
-    #print(lv)
-    #print(rv)
-    #ppi.set_velocity([0, 0])
-    
-    #drive_meas = measure.Drive(lv, -rv,turn_time)
-    #ekfvar.predict(drive_meas)
-    operate.take_pic()
-    operate.update_slam(drive_meas)
-    robot_pose = get_robot_pose()
 
-def rotate_away(waypoint, robot_pose):
-    robot_pose = get_robot_pose()
-    # print("Robot_pose:")
-    # print(robot_pose)
-    #distance_to_goal = get_distance_to_goal(waypoint, robot_pose)
-    #ppi.set_velocity([0,0])
-    turn_vel = operate.turning_tick
-    target_theta = np.arctan2((waypoint[1]-robot_pose[1]),(waypoint[0]-robot_pose[0]))-np.pi
-    print(target_theta)
-    while target_theta < 0:
-        target_theta += 2*np.pi
-    # if target_theta < np.pi:
-    #     target_theta += np.pi
-    # else:
-    #     target_theta -= np.pi
-    # print("Current Pose: " + str(robot_pose[2]))
-    target_diff = target_theta - robot_pose[2]
-    #print(target_diff)
-    if target_diff < 0:
-        target_diff += 2*np.pi
-    elif target_diff > 2*np.pi:
-        target_diff -= 2*np.pi
-    # turn towards the waypoint
-    print("rotating away from target")
-    print("Target Theta: " + str(target_theta))
-    print("Target diff: " + str(target_diff))
-    if target_diff > np.pi:
-        turn_time = float(baseline*np.abs(2*np.pi-target_diff)/(scale*turn_vel*2)) # replace with your calculation
-        print("Turning right for {:.2f} seconds".format(turn_time))
-        drive_meas = operate.control([0, -1], turn_time)
-    else:
-        turn_time = float(baseline*np.abs(target_diff)/(scale*turn_vel*2)) # replace with your calculation
-        print("Turning left for {:.2f} seconds".format(turn_time))
-        drive_meas = operate.control([0, 1], turn_time)
-    #print(lv)
-    #print(rv)
-    #ppi.set_velocity([0, 0])
-    
-    #drive_meas = measure.Drive(lv, -rv,turn_time)
-    #ekfvar.predict(drive_meas)
-    operate.take_pic()
-    operate.update_slam(drive_meas)
-    robot_pose = get_robot_pose()
-
-def drive_backwards():
-    wheel_vel = operate.tick
-    # calculate distance_travel
-    distance_travel = 0.15
-    #print(distance_travel)
-    
-    # after turning, drive straight to the waypoint
-    drive_time = float(distance_travel/(wheel_vel*operate.scale)) # replace with your calculation
-    print("Driving for {:.2f} seconds".format(drive_time))
-    drive_meas = operate.control([-1, 0], drive_time)
-    #print(lv)
-    #print(rv)
-    #drive_meas = measure.Drive(lv, -rv,drive_time)
-    operate.take_pic()
-    operate.update_slam(drive_meas)
-    operate.control([0, 0], 0.1)
-    robot_pose = get_robot_pose()
-
-    return robot_pose
 
 # main loop
 if __name__ == "__main__":
-    #TITLE_FONT = pygame.font.Font('pics/8-BitMadness.ttf', 35)
-    #TEXT_FONT = pygame.font.Font('pics/8-BitMadness.ttf', 40)
 
     pygame.init()
     font = pygame.font.Font(None, 36)
@@ -877,29 +724,59 @@ if __name__ == "__main__":
     operate.fruits_true_pos = fruits_true_pos
     operate.aruco_true_pos = aruco_true_pos
 
-    waypoint = [0.0,0.0]
+    #x,y = 0.0,0.0
     robot_pose = get_robot_pose()
     running = True
     # The following is only a skeleton code for semi-auto navigation
-    BORDER_OBS = int(input("Enter border barrier: "))
-    env1 = env.Env()
-    env1.set_arena_size(3000, 3000, border_width = BORDER_OBS)
-    #obs_aruco = []
+
+    #env1 = env.Env()
+    #env1.set_arena_size(3000, 3000)
+
     lms = []
-    ARUCO_OBS = int(input("Enter aruco size: "))
-    FRUIT_OBS = int(input("Enter fruit size: "))
-    for i in range(len(operate.aruco_true_pos)):
+    ARUCO_SCREEN_SIZE = 22
+
+    for i in range(len(aruco_true_pos)):
         #print(aruco_true_pos[i,:])
         new_marker = measure.Marker(aruco_true_pos[i].reshape(2,1),i+1, 0.001*np.eye(2))
         lms.append(new_marker)
-        env1.add_square_obs((1.5-aruco_true_pos[i,:][0])*1000, (1.5-aruco_true_pos[i,:][1])*1000, ARUCO_OBS)
-    operate.ekf.add_landmarks(lms)
-    for i in range(len(fruits_true_pos)):
+        #env1.add_square_obs((1.5-aruco_true_pos[i,:][0])*1000, (1.5-aruco_true_pos[i,:][1])*1000, ARUCO_OBS)
+    ekfvar.add_landmarks(lms)
+    #for i in range(len(fruits_true_pos)):
         #print(aruco_true_pos[i,:])
-        env1.add_square_obs(int(1500-fruits_true_pos[i][0]*1000), int(1500-fruits_true_pos[i][1]*1000), FRUIT_OBS)
+        #env1.add_square_obs(int(1500-fruits_true_pos[i,:][0]*1000), int(1500-fruits_true_pos[i,:][1]*1000), FRUIT_OBS)
 
-    threshold_stopping = int(input("Enter stopping distance in mm: "))
+    #threshold_stopping = input("Enter stopping distance in mm: ")
+    screen.fill(white)
+        # Rotate the robot image
 
+    rotated_robot_img = pygame.transform.rotate(original_robot_img, int(np.squeeze(robot_pose[2])/np.pi*180))
+    rotated_rect = rotated_robot_img.get_rect()
+    scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
+    rotated_rect.center = (scaled_x, scaled_y)
+    # Draw the rotated robot image
+    waypoints = [(1500,1500)]
+    for fruit in search_list:
+        for i in range(len(fruits_list)): # there are 5 targets amongst 10 objects
+            if fruit == fruits_list[i]:
+                waypoints.append((int(1500-fruits_true_pos[i][0]*1000), int(1500-fruits_true_pos[i][1]*1000)))
+                #true_waypoints.append((int(1500-fruits_true_pos[i][0]*1000), int(1500-fruits_true_pos[i][1]*1000)))
+    for i in range(len(waypoints)):
+        #print((world_to_gui(true_waypoints[i][1]), world_to_gui(true_waypoints[i][0])))
+        pygame.draw.circle(screen, yellow, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)), 133)
+        text_surface = font.render(str(i), True, black)
+        #screen.blit(text_surface, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)-300))
+    for i in range(len(fruits_true_pos)):
+        #print(aruco_true_pos[i,:][0])
+        #pygame.draw.circle(screen, yellow, (world_to_gui(fruits_true_pos[i,:][1]), world_to_gui(fruits_true_pos[j,:][0])), 133)
+        screen.blit(durian_img, (world_to_gui(fruits_true_pos[i,:][1]), world_to_gui(fruits_true_pos[i,:][0])))
+    for i in range(len(aruco_true_pos)):
+        #print(aruco_true_pos[i,:][0])
+        pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[i,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[i,:][0])- ARUCO_SCREEN_SIZE//2, ARUCO_SCREEN_SIZE,  ARUCO_SCREEN_SIZE))
+        text_content = str(i+1)
+        text_surface = font.render(text_content, True, white)
+        screen.blit(text_surface, (world_to_gui(aruco_true_pos[i,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[i,:][0])- ARUCO_SCREEN_SIZE//2))
+    screen.blit(rotated_robot_img, rotated_rect)
+    pygame.display.flip()
     
     ARUCO_SCREEN_SIZE = 22
     # print(avoid_list)
@@ -916,97 +793,56 @@ if __name__ == "__main__":
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-        # enter the waypoints
-        # instead of manually enter waypoints, you can give coordinates by clicking on a map, see camera_calibration.py from M2
-        #print(theta_pygame)
-        screen.fill(white)
-            # Rotate the robot image
-
-        rotated_robot_img = pygame.transform.rotate(original_robot_img, int(np.squeeze(robot_pose[2])/np.pi*180))
-        rotated_rect = rotated_robot_img.get_rect()
-        scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
-        rotated_rect.center = (scaled_x, scaled_y)
-        # Draw the rotated robot image
-        #true_waypoints = []
-        waypoints = [(1500,1500)]
-        for fruit in search_list:
-            for i in range(len(fruits_list)): # there are 5 targets amongst 10 objects
-                if fruit == fruits_list[i]:
-                    waypoints.append((int(1500-fruits_true_pos[i][0]*1000), int(1500-fruits_true_pos[i][1]*1000)))
-                    #true_waypoints.append((int(1500-fruits_true_pos[i][0]*1000), int(1500-fruits_true_pos[i][1]*1000)))
-        for i in range(1,len(waypoints)):
-            #print((world_to_gui(true_waypoints[i][1]), world_to_gui(true_waypoints[i][0])))
-            pygame.draw.circle(screen, yellow, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)), 133)
-            text_surface = font.render(str(i), True, red)
-            screen.blit(text_surface, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)-100))
-        for i in range(len(fruits_true_pos)):
-            #print(aruco_true_pos[i,:][0])
-            #pygame.draw.circle(screen, yellow, (world_to_gui(fruits_true_pos[i,:][1]), world_to_gui(fruits_true_pos[j,:][0])), 133)
-            screen.blit(durian_img, (world_to_gui(fruits_true_pos[i,:][1]), world_to_gui(fruits_true_pos[i,:][0])))
-        for i in range(len(aruco_true_pos)):
-            #print(aruco_true_pos[i,:][0])
-            pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[i,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[i,:][0])- ARUCO_SCREEN_SIZE//2, ARUCO_SCREEN_SIZE,  ARUCO_SCREEN_SIZE))
-            text_content = str(i+1)
-            text_surface = font.render(text_content, True, white)
-            screen.blit(text_surface, (world_to_gui(aruco_true_pos[i,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[i,:][0])- ARUCO_SCREEN_SIZE//2))
-        screen.blit(rotated_robot_img, rotated_rect)
-        pygame.display.flip()
-
-        #print(waypoints)
-        for i in range(len(waypoints)-1):
-            #print(waypoints[i])
-            #print(int((robot_pose[0,0]+1.5)*1000),int((robot_pose[1,0]+1.5)*1000))
-            #waypoints[i+1] = calc_new_waypoint(waypoints[i+1], robot_pose)
-            print(waypoints[i+1])
-            env1.remove_square_obs(waypoints[i+1][0], waypoints[i+1][1], FRUIT_OBS)
-            print("obs removed")
-            #print(waypoints[i+1])
-            #pose_in_
-            astar = AStar((int((1.5-robot_pose[0])*1000),int((1.5-robot_pose[1])*1000)), waypoints[i+1], "euclidean", env1)
-            print("Finding path")
-            path, visited = astar.searching()
-            attempt = 0
-            while True:
-                #print("while")
-                path_length = len(path)
-                #attempt += 1
-            
-                if (distance_waypoint_to_waypoint(path[-2], waypoints[i+1]) < threshold_stopping )and (path_length > 2):
-                    #print("true")
-                    path.pop(len(path)-1)
-                else:
-                    #print("break")
-                    break
-            smoothed_path = smooth_path(path)
-            print(smoothed_path)
-            #if distance_waypoint_to_waypoint(smoothed_path[-1], waypoints[i+1]) < 410:
-                #smoothed_path[-1] = calc_new_waypoint2(smoothed_path[-2], smoothed_path[-1])
-            #print(smoothed_path)
-            scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
-            screen.fill(white)
-            pygame.draw.circle(screen, yellow, (int(waypoints[i+1][1]/30*8), int(waypoints[i+1][0]/30*8)), 133)
-            text_surface = font.render(str(i+1), True, red)
-            screen.blit(text_surface, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)-100))
-            for j in range(len(fruits_true_pos)):
-            #print(aruco_true_pos[i,:][0])
-                screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])))
-            screen.blit(rotated_robot_img, rotated_rect)
-            for j in range(len(aruco_true_pos)):
-                pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[j,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[j,:][0])- ARUCO_SCREEN_SIZE//2,  ARUCO_SCREEN_SIZE,  ARUCO_SCREEN_SIZE))
-                text_content = str(j+1)
-                text_surface = font.render(text_content, True, white)
-                screen.blit(text_surface, (world_to_gui(aruco_true_pos[j,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[j,:][0])- ARUCO_SCREEN_SIZE//2))
-                #pygame.draw.rect(screen, purple, (world_to_gui(fruits_true_pos[j,:][1])-24, world_to_gui(fruits_true_pos[j,:][0])-12, 24, 24))
-            pygame.draw.line(screen, red, (scaled_x, scaled_y), (waypoints[i+1][1]/30*8,waypoints[i+1][0]/30*8), 5)
-            for j in range(len(smoothed_path)-1):
-                pygame.draw.line(screen, blue, (int(smoothed_path[j][1]*800/3000),int(smoothed_path[j][0]*800/3000)), (int(smoothed_path[j+1][1]*800/3000),int(smoothed_path[j+1][0]*800/3000)), 5)
-            pygame.display.flip()
-            
-            for j in range(1,len(smoothed_path)):
-                waypoint = (1.5-smoothed_path[j][0]/1000,1.5-smoothed_path[j][1]/1000)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                gui_y, gui_x = pygame.mouse.get_pos()
+                print(gui_x)
+                print(gui_y)
+                x = 1.5-gui_x*3/800
+                y = 1.5-gui_y*3/800
+                print(x)
+                print(y)
+                scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
+                screen.fill(white)
+                #pygame.draw.circle(screen, yellow, (int(waypoints[i+1][1]/30*8), int(waypoints[i+1][0]/30*8)), 133)
+                for i in range(1,len(waypoints)):
+                    #print((world_to_gui(true_waypoints[i][1]), world_to_gui(true_waypoints[i][0])))
+                    pygame.draw.circle(screen, yellow, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)), 133)
+                    text_surface = font.render(str(i), True, red)
+                    screen.blit(text_surface, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)-150))
+                for j in range(len(fruits_true_pos)):
+                #print(aruco_true_pos[i,:][0])
+                    screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])))
+                screen.blit(rotated_robot_img, rotated_rect)
+                for i in range(len(waypoints)):
+                    #print((world_to_gui(true_waypoints[i][1]), world_to_gui(true_waypoints[i][0])))
+                    pygame.draw.circle(screen, yellow, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)), 133)
+                    text_surface = font.render(str(i), True, black)
+                    screen.blit(text_surface, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)-300))
+                for j in range(len(aruco_true_pos)):
+                    pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[j,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[j,:][0])- ARUCO_SCREEN_SIZE//2,  ARUCO_SCREEN_SIZE,  ARUCO_SCREEN_SIZE))
+                    text_content = str(j+1)
+                    text_surface = font.render(text_content, True, white)
+                    screen.blit(text_surface, (world_to_gui(aruco_true_pos[j,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[j,:][0])- ARUCO_SCREEN_SIZE//2))
+                    #pygame.draw.rect(screen, purple, (world_to_gui(fruits_true_pos[j,:][1])-24, world_to_gui(fruits_true_pos[j,:][0])-12, 24, 24))
+                pygame.display.flip()
+                #x,y,theta = 0.0,0.0,0.0
+                # x = input("X coordinate of the waypoint: ")
+                # try:
+                #     x = float(x)
+                # except ValueError:
+                #     print("Please enter a number.")
+                #     continue
+                # y = input("Y coordinate of the waypoint: ")
+                # try:
+                #     y = float(y)
+                # except ValueError:
+                #     print("Please enter a number.")
+                #     continue
+                        
+                
+                waypoint = (x,y)
                 print(waypoint)
-                drive_to_point(waypoint,robot_pose)
-                robot_pose = get_robot_pose()
+                
                 screen.fill(white)
                 # Display Robot after each waypoint
                 rotated_robot_img = pygame.transform.rotate(original_robot_img, robot_pose[2]/np.pi*180)
@@ -1014,79 +850,72 @@ if __name__ == "__main__":
                 scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
                 rotated_rect.center = (scaled_x, scaled_y)
                 # Draw the rotated robot image
-                pygame.draw.circle(screen, yellow, (int(waypoints[i+1][1]/30*8), int(waypoints[i+1][0]/30*8)), 133)
-                text_surface = font.render(str(i+1), True, red)
-                screen.blit(text_surface, (int(waypoints[i+1][1]/30*8), int(waypoints[i+1][0]/30*8)-100))
+
+                for i in range(1,len(waypoints)):
+                    #print((world_to_gui(true_waypoints[i][1]), world_to_gui(true_waypoints[i][0])))
+                    pygame.draw.circle(screen, yellow, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)), 133)
+                    text_surface = font.render(str(i), True, red)
+                    screen.blit(text_surface, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)-150))
+                
                 for k in range(len(fruits_true_pos)):
                 #print(aruco_true_pos[i,:][0])
                     #pygame.draw.circle(screen, yellow, (world_to_gui(fruits_true_pos[k,:][1]), world_to_gui(fruits_true_pos[k,:][0])), 133)
                     screen.blit(durian_img, (world_to_gui(fruits_true_pos[k,:][1]), world_to_gui(fruits_true_pos[k,:][0])))
-                screen.blit(rotated_robot_img, rotated_rect)
                 for k in range(len(aruco_true_pos)):
                     #print(aruco_true_pos[i,:][0])
                     pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[k,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[k,:][0])- ARUCO_SCREEN_SIZE//2,  ARUCO_SCREEN_SIZE,  ARUCO_SCREEN_SIZE))
-                    text_content = str(k+1)
-                    text_surface = font.render(text_content, True, white)
-                    screen.blit(text_surface, (world_to_gui(aruco_true_pos[k,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[k,:][0])- ARUCO_SCREEN_SIZE//2))
-                pygame.draw.line(screen, red, (scaled_x, scaled_y), (waypoints[i+1][1]/30*8,waypoints[i+1][0]/30*8), 5)
-                for k in range(len(smoothed_path)-1):
-                    pygame.draw.line(screen, blue, (int(smoothed_path[k][1]*800/3000),int(smoothed_path[k][0]*800/3000)), (int(smoothed_path[k+1][1]*800/3000),int(smoothed_path[k+1][0]*800/3000)), 5)
+                    #screen.blit(text_surface, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)-300))
+                screen.blit(rotated_robot_img, rotated_rect)
+                pygame.draw.line(screen, red, (scaled_x, scaled_y), (gui_y,gui_x), 5)
                 pygame.display.flip()
-                if within_waypoint(waypoints[i], robot_pose):
-                    print("break")
-                    break
-                j += 1
-            #time.sleep(0.5)
-            robot_pose = get_robot_pose()
-            #rotate_away(waypoints[i+1], robot_pose)
-            rotate_to_centre(robot_pose)
-            robot_pose = get_robot_pose()
-            #time.sleep(0.5)
-            #robot_pose = get_robot_pose()
-            print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
-            #pygame.display.flip()
-            screen.fill(white)
-                # Rotate the robot image
-            rotated_robot_img = pygame.transform.rotate(original_robot_img, robot_pose[2]/np.pi*180)
-            rotated_rect = rotated_robot_img.get_rect()
-            scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
-            rotated_rect.center = (scaled_x, scaled_y)
-            # Draw the rotated robot image
-            if i < 4:
-                pygame.draw.circle(screen, yellow, (int(waypoints[i+2][1]/30*8), int(waypoints[i+2][0]/30*8)), 133)
-                text_surface = font.render(str(i+2), True, red)
-                screen.blit(text_surface, (int(waypoints[i+2][1]/30*8), int(waypoints[i+2][0]/30*8)-100))
-            for j in range(len(fruits_true_pos)):
-            #print(aruco_true_pos[i,:][0])
-                #pygame.draw.circle(screen, yellow, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])), 133)
-                screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])))
-            for j in range(len(aruco_true_pos)):
+                drive_to_point(waypoint,robot_pose,ekfvar)
+                robot_pose = get_robot_pose()
+                #time.sleep(0.5)
+                #rotate_to_centre(robot_pose, ekfvar)
+                #time.sleep(0.5)
+                robot_pose = get_robot_pose()
+                print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
+                #pygame.display.flip()
+                screen.fill(white)
+                    # Rotate the robot image
+                rotated_robot_img = pygame.transform.rotate(original_robot_img, robot_pose[2]/np.pi*180)
+                rotated_rect = rotated_robot_img.get_rect()
+                scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
+                rotated_rect.center = (scaled_x, scaled_y)
+                # Draw the rotated robot image
+                #pygame.draw.circle(screen, yellow, (int(waypoints[i+1][1]/30*8), int(waypoints[i+1][0]/30*8)), 133)
+                for i in range(1,len(waypoints)):
+                    #print((world_to_gui(true_waypoints[i][1]), world_to_gui(true_waypoints[i][0])))
+                    pygame.draw.circle(screen, yellow, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)), 133)
+                    text_surface = font.render(str(i), True, red)
+                    screen.blit(text_surface, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)-150))
+                for j in range(len(fruits_true_pos)):
                 #print(aruco_true_pos[i,:][0])
-                text_content = str(j+1)
-                text_surface = font.render(text_content, True, white)
-                screen.blit(text_surface, (world_to_gui(aruco_true_pos[j,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[j,:][0])- ARUCO_SCREEN_SIZE//2))
-                pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[j,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[j,:][0])- ARUCO_SCREEN_SIZE//2, ARUCO_SCREEN_SIZE, ARUCO_SCREEN_SIZE))
+                    #pygame.draw.circle(screen, yellow, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])), 133)
+                    screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])))
+                for j in range(len(aruco_true_pos)):
+                    #print(aruco_true_pos[i,:][0])
+                    pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[j,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[j,:][0])- ARUCO_SCREEN_SIZE//2, ARUCO_SCREEN_SIZE, ARUCO_SCREEN_SIZE))
+                screen.blit(rotated_robot_img, rotated_rect)
+                pygame.display.flip()
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_q:
+                pygame.quit()
+            time.sleep(0.2)
+                    
+        # enter the waypoints
+        # instead of manually enter waypoints, you can give coordinates by clicking on a map, see camera_calibration.py from M2
+        #print(theta_pygame)
+        
 
-            screen.blit(rotated_robot_img, rotated_rect)
-            pygame.display.flip()
-            env1.add_square_obs(waypoints[i+1][0], waypoints[i+1][1], threshold_stopping-20)
-            if i > 0:
-                env1.add_square_obs(waypoints[i][0], waypoints[i][1], ARUCO_OBS-5)
-            print("Target {} reached".format(i+1))
-            #robot_pose = drive_backwards()
-        #x,y,theta = 0.0,0.0,0.0
-        # x = input("X coordinate of the waypoint: ")
-        # try:
-        #     x = float(x)
-        # except ValueError:
-        #     print("Please enter a number.")
-        #     continue
-        # y = input("Y coordinate of the waypoint: ")
-        # try:
-        #     y = float(y)
-        # except ValueError:
-        #     print("Please enter a number.")
-        #     continue
+        #print(waypoints)
+
+
+
+
+        #if distance_waypoint_to_waypoint(smoothed_path[-1], waypoints[i+1]) < 410:
+            #smoothed_path[-1] = calc_new_waypoint2(smoothed_path[-2], smoothed_path[-1])
+        #print(smoothed_path)
+
         
         # robot drives to the waypoint
         
@@ -1100,14 +929,3 @@ if __name__ == "__main__":
         # uInput = input("Add a new waypoint? [Y/N]")
         # if uInput == 'N':
         #     break
-        break
-    screen.fill(white)
-    print("All targets reached. Mission accomplished.")
-    text_content = "Mission Accomplished! Demonstrators please give us the full mark"
-    text_color = (0, 0, 0)  # White color
-    text_surface = font.render(text_content, True, black)
-    screen.blit(text_surface, (0, 200))
-    pygame.display.update()
-    time.sleep(30)
-
-    pygame.quit()

@@ -44,7 +44,7 @@ class Operate:
         self.aruco_det = aruco.aruco_detector(
             self.ekf.robot, marker_length=0.07)  # size of the ARUCO markers
         self.tick=25
-        self.turning_tick=5
+        self.turning_tick=10
 
         if args.save_data:
             self.data = dh.DatasetWriter('record')

@@ -4,7 +4,7 @@ class Env:
                         (1, 0), (1, -1), (0, -1), (-1, -1)]
         self.obs = set()
 
-    def set_arena_size(self, width, height):
+    def set_arena_size(self, width, height, border_width=200):
         """
         Initialize obstacles' positions
         :return: map of obstacles
@@ -13,14 +13,15 @@ class Env:
         x = width
         y = height
 
-        for i in range(x):
+        # Add border obstacles
+        #border_width = 200
+
+        for i in range(border_width):
             self.obs.add((i, 0))
-        for i in range(x):
             self.obs.add((i, y - 1))
 
-        for i in range(y):
+        for i in range(border_width):
             self.obs.add((0, i))
-        for i in range(y):
             self.obs.add((x - 1, i))
 
 
