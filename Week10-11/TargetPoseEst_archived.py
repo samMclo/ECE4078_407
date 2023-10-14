@@ -5,7 +5,7 @@ import os
 import ast
 import cv2
 from YOLO.detector import Detector
-from sklearn.cluster import KMeans
+#from sklearn.cluster import KMeans
 
 # list of target fruits and vegs types
 # Make sure the names are the same as the ones used in your YOLO model
@@ -83,157 +83,28 @@ def merge_estimations(target_pose_dict):
     output:
         target_est: dict, target pose estimations after merging
     """
-    target_map = target_pose_dict
-    print(target_map)
-    capsicum_est, garlic_est, lemon_est, lime_est, orange_est, potato_est, pumpkin_est, tomato_est = [], [], [], [], [], [], [], []
     target_est = {}
 
-    # combine the estimations from multiple detector outputs
-    for key in target_map:
-            #print(f)
-            if key.startswith('Capsicum'):
-                capsicum_est.append(
-                    np.array(list(target_map[key].values()), dtype=float))
-            elif key.startswith('Garlic'):
-                garlic_est.append(
-                    np.array(list(target_map[key].values()), dtype=float))
-            elif key.startswith('Lemon'):
-                lemon_est.append(
-                    np.array(list(target_map[key].values()), dtype=float))
-            elif key.startswith('Lime'):
-                lime_est.append(
-                    np.array(list(target_map[key].values()), dtype=float))
-            elif key.startswith('Orange'):
-                orange_est.append(
-                    np.array(list(target_map[key].values()), dtype=float))
-            elif key.startswith('Potato'):
-                potato_est.append(
-                    np.array(list(target_map[key].values()), dtype=float))
-            elif key.startswith('Pumpkin'):
-                pumpkin_est.append(
-                    np.array(list(target_map[key].values()), dtype=float))
-            elif key.startswith('tomato'):
-                tomato_est.append(
-                    np.array(list(target_map[key].values()), dtype=float))
-
-
     ######### Replace with your codes #########
-    # TODO: the operation below takes the first three estimations of each target type, replace it with a better merge solution
-    if len(capsicum_est) > 1:
-        kmeans2 = KMeans(n_clusters=2, random_state=0).fit(capsicum_est)
-        kmeans1 = KMeans(n_clusters=1, random_state=0).fit(capsicum_est)
-        #print('apple ', kmeans1.inertia_ - kmeans2.inertia_)
-        if kmeans1.inertia_ - kmeans2.inertia_ < 0.2:  # ! 1.5 is arbitrary, inertia is the sum of square distance
-            capsicum_est = kmeans1.cluster_centers_
-        else:
-            capsicum_est = kmeans2.cluster_centers_
+    # TODO: replace it with a solution to merge the multiple occurrences of the same class type (e.g., by a distance threshold)
+    THRESHOLD = 15
+    for key, pose in target_pose_dict.items():
+        type, occurrence = key.split('_')
 
-    if len(garlic_est) > 1:
-        kmeans2 = KMeans(n_clusters=2, random_state=0).fit(garlic_est)
-        kmeans1 = KMeans(n_clusters=1, random_state=0).fit(garlic_est)
-        #print('lemon ', kmeans1.inertia_ - kmeans2.inertia_)
-        if kmeans1.inertia_ - kmeans2.inertia_ < 0.2:  # ! 1.5 is arbitrary, inertia is the sum of square distance
-            garlic_est = kmeans1.cluster_centers_
+        if type in target_est:
+            distance = np.sqrt((pose['x'] - target_est[f'{type}_{occurrence}']['x']) ** 2 +
+                                (pose['y'] - target_est[f'{type}_{occurrence}']['y']) ** 2)
+            
+            if distance < THRESHOLD:
+               target_est[f'{type}_{occurrence}']['x'] = pose['x'] + target_est[f'{type}_{occurrence}']['x']
+               target_est[f'{type}_{occurrence}']['y'] = pose['y'] + target_est[f'{type}_{occurrence}']['y']
+            else:
+               target_est[f'{type}_{occurrence}'] = pose
         else:
-            garlic_est = kmeans2.cluster_centers_
-
-    if len(lemon_est) > 1:
-        kmeans2 = KMeans(n_clusters=2, random_state=0).fit(lemon_est)
-        kmeans1 = KMeans(n_clusters=1, random_state=0).fit(lemon_est)
-        #print('pear ', kmeans1.inertia_ - kmeans2.inertia_)
-        if kmeans1.inertia_ - kmeans2.inertia_ < 0.2:  # ! 1.5 is arbitrary, inertia is the sum of square distance
-            lemon_est = kmeans1.cluster_centers_
-        else:
-            lemon_est = kmeans2.cluster_centers_
-
-    if len(lime_est) > 1:
-        kmeans2 = KMeans(n_clusters=2, random_state=0).fit(lime_est)
-        kmeans1 = KMeans(n_clusters=1, random_state=0).fit(lime_est)
-        #print('orange ', kmeans1.inertia_ - kmeans2.inertia_)
-        if kmeans1.inertia_ - kmeans2.inertia_ < 0.2:  # ! 1.5 is arbitrary, inertia is the sum of square distance
-            lime_est = kmeans1.cluster_centers_
-        else:
-            lime_est = kmeans2.cluster_centers_
-
-    if len(orange_est) > 1:
-        kmeans2 = KMeans(n_clusters=2, random_state=0).fit(orange_est)
-        kmeans1 = KMeans(n_clusters=1, random_state=0).fit(orange_est)
-        #print('strawberry ', kmeans1.inertia_ - kmeans2.inertia_)
-        if kmeans1.inertia_ - kmeans2.inertia_ < 0.2:  # ! 1.5 is arbitrary, inertia is the sum of square distance
-            orange_est = kmeans1.cluster_centers_
-        else:
-            orange_est = kmeans2.cluster_centers_
-    if len(potato_est) > 1:
-        kmeans2 = KMeans(n_clusters=2, random_state=0).fit(potato_est)
-        kmeans1 = KMeans(n_clusters=1, random_state=0).fit(potato_est)
-        #print('pear ', kmeans1.inertia_ - kmeans2.inertia_)
-        if kmeans1.inertia_ - kmeans2.inertia_ < 0.2:  # ! 1.5 is arbitrary, inertia is the sum of square distance
-            potato_est = kmeans1.cluster_centers_
-        else:
-            potato_est = kmeans2.cluster_centers_
-
-    if len(pumpkin_est) > 1:
-        kmeans2 = KMeans(n_clusters=2, random_state=0).fit(pumpkin_est)
-        kmeans1 = KMeans(n_clusters=1, random_state=0).fit(pumpkin_est)
-        #print('orange ', kmeans1.inertia_ - kmeans2.inertia_)
-        if kmeans1.inertia_ - kmeans2.inertia_ < 0.2:  # ! 1.5 is arbitrary, inertia is the sum of square distance
-            pumpkin_est = kmeans1.cluster_centers_
-        else:
-            pumpkin_est = kmeans2.cluster_centers_
-
-    if len(tomato_est) > 1:
-        kmeans2 = KMeans(n_clusters=2, random_state=0).fit(tomato_est)
-        kmeans1 = KMeans(n_clusters=1, random_state=0).fit(tomato_est)
-        #print('strawberry ', kmeans1.inertia_ - kmeans2.inertia_)
-        if kmeans1.inertia_ - kmeans2.inertia_ < 0.2:  # ! 1.5 is arbitrary, inertia is the sum of square distance
-            tomato_est = kmeans1.cluster_centers_
-        else:
-            tomato_est = kmeans2.cluster_centers_
-
-    for i in range(3):
-        # except here is to deal with list with lenght of 1 ( out of indices problem)
-        try:
-            target_est['capsicum_' +
-                       str(i)] = {'y': capsicum_est[i][0], 'x': capsicum_est[i][1]}
-        except:
-            pass
-        try:
-            target_est['garlic_' +
-                       str(i)] = {'y': garlic_est[i][0], 'x': garlic_est[i][1]}
-        except:
-            pass
-        try:
-            target_est['lemon_' +
-                       str(i)] = {'y': lemon_est[i][0], 'x': lemon_est[i][1]}
-        except:
-            pass
-        try:
-            target_est['lime_' +
-                       str(i)] = {'y': lime_est[i][0], 'x': lime_est[i][1]}
-        except:
-            pass
-        try:
-            target_est['orange_' +
-                       str(i)] = {'y': orange_est[i][0], 'x': orange_est[i][1]}
-        except:
-            pass
-        try:
-            target_est['potato_' +
-                       str(i)] = {'y': potato_est[i][0], 'x': potato_est[i][1]}
-        except:
-            pass
-        try:
-            target_est['pumpkin_' +
-                       str(i)] = {'y': pumpkin_est[i][0], 'x': pumpkin_est[i][1]}
-        except:
-            pass
-        try:
-            target_est['tomato_' +
-                       str(i)] = {'y': tomato_est[i][0], 'x': tomato_est[i][1]}
-        except:
-            pass
-    ###########################################
-
+            target_est[f'{type}_{occurrence}'] = pose
+            
+    #########
+   
     return target_est
 
 def parse_user_map(fname : str) -> dict:

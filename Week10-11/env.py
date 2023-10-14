@@ -16,13 +16,15 @@ class Env:
         # Add border obstacles
         #border_width = 200
 
-        for i in range(border_width):
-            self.obs.add((i, 0))
-            self.obs.add((i, y - 1))
+        for i in range(x):
+            for j in range(border_width):
+                self.obs.add((i, j))
+                self.obs.add((i, y - 1 - j))
 
-        for i in range(border_width):
-            self.obs.add((0, i))
-            self.obs.add((x - 1, i))
+        for i in range(y):
+            for j in range(border_width):
+                self.obs.add((j, i))
+                self.obs.add((x - 1 - j, i))
 
 
     def add_square_obs(self, center_x, center_y, side_length):

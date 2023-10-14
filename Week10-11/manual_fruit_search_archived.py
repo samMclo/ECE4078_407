@@ -14,389 +14,20 @@ import matplotlib.pyplot as plt
 from path_smoothing import smooth_path
 import pygame
 import time
-import shutil 
-from copy import deepcopy
 
 # import SLAM components
 sys.path.insert(0, "{}/slam".format(os.getcwd()))
 from slam.ekf import EKF
 from slam.robot import Robot
 import slam.aruco_detector as aruco
-from YOLO.detector import Detector
 #from operate_yolo_search import Operate
 
 # import utility functions
 sys.path.insert(0, "{}/util")
-import util.DatasetHandler as dh 
 from pibot import PenguinPi
 import measure as measure
 
-class Operate:
-    def __init__(self, args):
-        self.level = 0
-        self.camera_matrix = None
-        self.scale = None
-        self.baseline = None
-        self.dist_coeffs = None
-        self.folder = 'pibot_dataset/'
-        if not os.path.exists(self.folder):
-            os.makedirs(self.folder)
-        else:
-            shutil.rmtree(self.folder)
-            os.makedirs(self.folder)
-        
-        # initialise data parameters
-        if args.play_data:
-            self.pibot = dh.DatasetPlayer("record")
-        else:
-            self.pibot = PenguinPi(args.ip, args.port)
 
-        # initialise SLAM parameters
-        self.ekf = self.init_ekf(args.calib_dir, args.ip)
-        self.aruco_det = aruco.aruco_detector(
-            self.ekf.robot, marker_length = 0.07) # size of the ARUCO markers
-        self.tick=50
-        self.turning_tick=20
-
-        if args.save_data:
-            self.data = dh.DatasetWriter('record')
-        else:
-            self.data = None
-        self.output = dh.OutputWriter('lab_output')
-        self.command = {'motion':[0, 0], 
-                        'inference': False,
-                        'output': False,
-                        'save_inference': False,
-                        'save_image': False}
-        self.quit = False
-        self.pred_fname = ''
-        self.request_recover_robot = False
-        self.file_output = None
-        self.ekf_on = True
-        self.double_reset_comfirm = 0
-        self.image_id = 0
-        self.notification = 'Press ENTER to start SLAM'
-        # a 5min timer
-        self.count_down = 3000
-        self.start_time = time.time()
-        self.control_clock = time.time()
-        # initialise images
-        self.img = np.zeros([240,320,3], dtype=np.uint8)
-        self.aruco_img = np.zeros([240,320,3], dtype=np.uint8)
-        self.detector_output = np.zeros([240,320], dtype=np.uint8)
-        
-        if args.yolo_model == "":
-            self.detector = None
-            self.yolo_vis = cv2.imread('pics/8bit/detector_splash.png')
-        else:
-            self.detector = Detector(args.yolo_model)
-            self.yolo_vis = np.ones((240, 320, 3)) * 100
-        self.bg = pygame.image.load('pics/gui_mask.jpg')
-
-        self.last_keys_pressed = [False, False, False, False, False]
-        self.vis_id = 0
-        self.fruit_search = False
-        self.fruit_lists = None
-        self.fruits_true_pos = None
-        self.aruco_true_pos = None
-
-    # wheel control
-    def control(self, motion, drive_time):
-        if not self.fruit_search:       
-            if args.play_data:
-                lv, rv = self.pibot.set_velocity()            
-            else:
-                lv, rv = self.pibot.set_velocity(
-                    self.command['motion'], tick=self.tick, turning_tick=self.turning_tick)
-            if not self.data is None:
-                self.data.write_keyboard(lv, rv)
-            dt = time.time() - self.control_clock
-            drive_meas = measure.Drive(lv, rv, dt)
-            self.control_clock = time.time()
-            return drive_meas
-        else:
-            lv, rv = self.pibot.set_velocity(motion, time = drive_time, tick=self.tick, turning_tick=self.turning_tick)
-            drive_meas = measure.Drive(lv, -rv, drive_time)
-            self.control_clock = time.time()
-            return drive_meas
-    # camera control
-    def take_pic(self):
-        self.img = self.pibot.get_image()
-        if not self.data is None:
-            self.data.write_image(self.img)
-
-    # SLAM with ARUCO markers       
-    def update_slam(self, drive_meas):
-        print('Update slam running')
-        lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
-        # cv2.imshow("img", self.aruco_img)
-        # cv2.waitKey(0)
-        if self.request_recover_robot:
-            is_success = self.ekf.recover_from_pause(lms)
-            if is_success:
-                self.notification = 'Robot pose is successfuly recovered'
-                self.ekf_on = True
-            else:
-                self.notification = 'Recover failed, need >2 landmarks!'
-                self.ekf_on = False
-            self.request_recover_robot = False
-        elif self.ekf_on: # and not self.debug_flag:
-            print(lms)
-            self.ekf.predict(drive_meas)
-            self.ekf.add_landmarks(lms)
-            self.ekf.update(lms)
-
-    # using computer vision to detect targets
-    def detect_target(self):
-        if self.command['inference'] and self.detector is not None:
-            image = cv2.cvtColor(self.img, cv2.COLOR_RGB2BGR)
-            output, output_img = self.detector.detect_single_image(image)
-            self.detector_output = output[0].numpy()
-            print(self.detector_output)
-            self.network_vis = cv2.cvtColor(output_img, cv2.COLOR_BGR2RGB)
-            self.command['inference'] = False
-            self.file_output = (self.detector_output, deepcopy(self.ekf.robot.state[:,0].tolist()))
-            self.notification = f'{self.detector_output.shape[0]} target(s) detected'
-
-    # save raw images taken by the camera
-    def save_image(self):
-        f_ = os.path.join(self.folder, f'img_{self.image_id}.png')
-        if self.command['save_image']:
-            image = self.pibot.get_image()
-            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            cv2.imwrite(f_, image)
-            self.image_id += 1
-            self.command['save_image'] = False
-            self.notification = f'{f_} is saved'
-
-    # wheel and camera calibration for SLAM
-    def init_ekf(self, datadir, ip):
-        fileK = "{}intrinsic.txt".format(datadir)
-        self.camera_matrix = np.loadtxt(fileK, delimiter=',')
-        fileD = "{}distCoeffs.txt".format(datadir)
-        self.dist_coeffs = np.loadtxt(fileD, delimiter=',')
-        fileS = "{}scale.txt".format(datadir)
-        self.scale = np.loadtxt(fileS, delimiter=',')
-        # if ip == 'localhost':
-        #     self.scale /= 2
-        fileB = "{}baseline.txt".format(datadir)  
-        self.baseline = np.loadtxt(fileB, delimiter=',')
-        # self.baseline = 0.12
-        robot = Robot(self.baseline, self.scale, self.camera_matrix, self.dist_coeffs)
-        return EKF(robot)
-
-    # save SLAM map
-    def record_data(self):
-        if self.command['output']:
-            self.output.write_map(self.ekf)
-            self.notification = 'Map is saved'
-            self.command['output'] = False
-        # save inference with the matching robot pose and detector labels
-        if self.command['save_inference']:
-            if self.file_output is not None:
-                #image = cv2.cvtColor(self.file_output[0], cv2.COLOR_RGB2BGR)
-
-                bboxs = self.file_output[0][:,0:4]
-                labels = self.file_output[0][:,5]
-                confs = self.file_output[0][:,4]
-
-                out = {
-                    "pose" : self.file_output[1],
-                    "bbox" : bboxs.tolist(),
-                    "confs" : confs.tolist(),
-                    "labels" : labels.tolist()
-                }
-                cv2.imwrite('lab_output/pred_img'+str(self.vis_id)+'.png', cv2.cvtColor(self.network_vis, cv2.COLOR_RGB2BGR))
-                self.vis_id += 1
-                self.notification = f'Prediction is saved to lab_output/output.txt'
-                with open('lab_output/output.txt', 'a') as f:
-                    f.write(json.dumps(out))
-                    f.write('\n')
-
-
-            else:
-                self.notification = f'No prediction in buffer, save ignored'
-            self.command['save_inference'] = False
-
-    # paint the GUI            
-    def draw(self, canvas):
-        canvas.blit(self.bg, (0, 0))
-        text_colour = (220, 220, 220)
-        v_pad = 40
-        h_pad = 20
-
-        # paint SLAM outputs
-        ekf_view = self.ekf.draw_slam_state(res=(320, 480+v_pad),
-            not_pause = self.ekf_on)
-        canvas.blit(ekf_view, (2*h_pad+320, v_pad))
-        robot_view = cv2.resize(self.aruco_img, (320, 240))
-        self.draw_pygame_window(canvas, robot_view, 
-                                position=(h_pad, v_pad)
-                                )
-
-        # for target detector (M3)
-        detector_view = cv2.resize(self.network_vis,
-                                   (320, 240), cv2.INTER_NEAREST)
-        self.draw_pygame_window(canvas, detector_view, 
-                                position=(h_pad, 240+2*v_pad)
-                                )
-
-        # canvas.blit(self.gui_mask, (0, 0))
-        self.put_caption(canvas, caption='SLAM', position=(2*h_pad+320, v_pad))
-        self.put_caption(canvas, caption='Detector',
-                         position=(h_pad, 240+2*v_pad))
-        self.put_caption(canvas, caption='PiBot Cam', position=(h_pad, v_pad))
-
-        notifiation = TEXT_FONT.render(self.notification,
-                                          False, text_colour)
-        canvas.blit(notifiation, (h_pad+10, 596))
-
-        time_remain = self.count_down - time.time() + self.start_time
-        if time_remain > 0:
-            time_remain = f'Count Down: {time_remain:03.0f}s'
-        elif int(time_remain)%2 == 0:
-            time_remain = "Time Is Up !!!"
-        else:
-            time_remain = ""
-        count_down_surface = TEXT_FONT.render(time_remain, False, (50, 50, 50))
-        canvas.blit(count_down_surface, (2*h_pad+320+5, 530))
-        return canvas
-
-    @staticmethod
-    def draw_pygame_window(canvas, cv2_img, position):
-        cv2_img = np.rot90(cv2_img)
-        view = pygame.surfarray.make_surface(cv2_img)
-        view = pygame.transform.flip(view, True, False)
-        canvas.blit(view, position)
-    
-    @staticmethod
-    def put_caption(canvas, caption, position, text_colour=(200, 200, 200)):
-        caption_surface = TITLE_FONT.render(caption,
-                                          False, text_colour)
-        canvas.blit(caption_surface, (position[0], position[1]-25))
-
-    def scale_speed(self):
-        keys_pressed = pygame.key.get_pressed()
-        shift_pressed = keys_pressed[pygame.K_LSHIFT] or keys_pressed[pygame.K_RSHIFT]
-        if shift_pressed == True:
-            speedscale = 3
-        else:
-            speedscale = 1
-        return speedscale 
-
-    # keyboard teleoperation        
-    def update_keyboard(self):
-        for event in pygame.event.get():
-
-            if not self.fruit_search:
-    ########### replace with your M1 codes ###########
-                keys = pygame.key.get_pressed()
-                up = keys[pygame.K_UP]
-                down = keys[pygame.K_DOWN]
-                left = keys[pygame.K_LEFT]
-                right = keys[pygame.K_RIGHT]
-                shift = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
-                
-            ############### add your codes below ###############
-                v = 1
-                keys_pressed = [up, down, left, right, shift]
-                if keys_pressed != self.last_keys_pressed:
-                    if up:
-                        if (not left) and (not right): # up only
-                            self.command['motion'] = [self.scale_speed()*v,0]
-                            print("Moving Forward")
-                        elif left and (not right): # up left
-                            self.command['motion'] = [self.scale_speed()*v,self.scale_speed()*v]
-                            print("Moving Forward-Left")
-                        elif (not left) and right: # up right
-                            self.command['motion'] = [self.scale_speed()*v,-self.scale_speed()*v]
-                            print("Moving Forward-Right")
-                        else:
-                            self.command['motion'] = [0, 0]
-                            print("Moving Forward")
-                    elif down:
-                        if (not left) and (not right): # down only
-                            self.command['motion'] = [-self.scale_speed()*v,0]
-                            print("Moving Backward")
-                        elif left and (not right): # down left
-                            self.command['motion'] = [-self.scale_speed()*v,-self.scale_speed()*v]
-                            print("Moving Backward-Left")
-                        elif (not left) and right: # down right
-                            self.command['motion'] = [-self.scale_speed()*v,self.scale_speed()*v]
-                            print("Moving Backword-Right")
-                        else:
-                            self.command['motion'] = [0, 0]
-                            print("Moving Backward")
-                    elif left: 
-                        if not right: # left only
-                            self.command['motion'] = [0,self.scale_speed()*v]
-                            print("Spinning Left")
-                        else:
-                            self.command['motion'] = [0, 0]
-                            print("Stopping")
-                    elif right: # right only
-                        self.command['motion'] = [0,-self.scale_speed()*v]
-                        print("Spinning Right")
-                    else:
-                        self.command['motion'] = [0, 0]
-                        print("Stopping")
-                    
-                    self.last_keys_pressed = [up, down, left, right, shift]
-
-
-            ####################################################
-            # stop
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                self.command['motion'] = [0, 0]
-            # save image
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
-                self.command['save_image'] = True
-            # save SLAM map
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-                self.command['output'] = True
-            # reset SLAM map
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-                if self.double_reset_comfirm == 0:
-                    self.notification = 'Press again to confirm CLEAR MAP'
-                    self.double_reset_comfirm +=1
-                elif self.double_reset_comfirm == 1:
-                    self.notification = 'SLAM Map is cleared'
-                    self.double_reset_comfirm = 0
-                    self.ekf.reset()
-            # run SLAM
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                n_observed_markers = len(self.ekf.taglist)
-                if n_observed_markers == 0:
-                    if not self.ekf_on:
-                        self.notification = 'SLAM is running'
-                        self.ekf_on = True
-
-                #     else:
-                #         self.notification = '> 2 landmarks is required for pausing'
-                # elif n_observed_markers < 3:
-                #     self.notification = '> 2 landmarks is required for pausing'
-                # else:
-                #     if not self.ekf_on:
-                #         self.request_recover_robot = True
-                #     self.ekf_on = not self.ekf_on
-                #     if self.ekf_on:
-                #         self.notification = 'SLAM is running'
-                #     else:
-                #         self.notification = 'SLAM is paused'
-            # run object detector
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
-                self.command['inference'] = True
-            # save object detection outputs
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_n:
-                self.command['save_inference'] = True
-            # quit
-            elif event.type == pygame.QUIT:
-                self.quit = True
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                self.quit = True
-        if self.quit:
-            pygame.quit()
-            sys.exit()
 
 def read_true_map(fname):
     """Read the ground truth map and output the pose of the ArUco markers and 5 target fruits&vegs to search for
@@ -519,61 +150,111 @@ def drive_to_point(waypoint, robot_pose, ekfvar):
     # TODO: replace with your codes to make the robot drive to the waypoint
     # One simple strategy is to first turn on the spot facing the waypoint,
     # then drive straight to the way point
+    # wheel_vel = 30 # tick
+    # wheel_w = 5
+    # K_pv = 1
+    # K_pw = 1
+    
+    # # get distance to waypoint
+    # distance_to_goal = get_distance_to_goal(waypoint, robot_pose)
+    # # print("Distance_to_goal:")
+    # # print(distance_to_goal)
+    # #print("Robot_pose:")
+    # #print(robot_pose)
 
-    robot_pose = get_robot_pose()
-    Kt, Kd = 1, 1
+    # # get desired heading
+    # desired_heading = get_desired_heading(waypoint, robot_pose)
+    # print("Desired_heading:")
+    # print(desired_heading)
+
+    # rot_threshold = 0.05 # might want to decrease for better acc
+    # dist_threshold = 0.05
+
+    # #while abs(orientation_diff) > rot_threshold:
+    # w_k = K_pw*desired_heading
+    # if desired_heading <0:
+    #     r = -1
+    # else:
+    #     r = 1
+    # turn_time =  abs(baseline/(scale*wheel_w)*(w_k/np.pi))
+    # # print("Turn time: ")
+    # # print(turn_time)
+    # lv, rv = ppi.set_velocity([0, r], turning_tick=wheel_w, time=turn_time)
+    # # print('left-right v:',lv,rv)
+    
+    # drive_meas = measure.Drive(lv, rv,turn_time, 1, 1)
+    # ekf.predict(drive_meas)
+    # robot_pose = get_robot_pose(aruco_true_pos, ekfvar)
+    # # print("Robot_pose:")
+    # # print(robot_pose)
+    # #desired_heading = get_desired_heading(waypoint, robot_pose)
+    # orientation_diff = desired_heading - robot_pose[2]
+    # # print(orientation_diff)
+    # ppi.set_velocity([0,0])
+        
+           
+    #while distance_to_goal > dist_threshold:
+    # v_k = K_pv*distance_to_goal
+    # drive_time = v_k/(scale*wheel_vel)
+    # #print(v_k, scale, wheel_vel, waypoint, robot_pose)
+    # #print("Drive time: ")
+    # #print(drive_time)
+    # lv, rv = ppi.set_velocity([1, 0], tick=wheel_vel, time=drive_time)
+    # drive_meas = measure.Drive(lv, rv,drive_time, 1, 1)
+    # ekf.predict(drive_meas)
+
+    robot_pose = get_robot_pose(aruco_true_pos, ekfvar)
     # print("Robot_pose:")
-    print(robot_pose)
+    # print(robot_pose)
     distance_to_goal = get_distance_to_goal(waypoint, robot_pose)
     ppi.set_velocity([0,0])
-    turn_vel = operate.turning_tick
-    wheel_vel = operate.tick # tick
+    turn_vel = 25
+    wheel_vel = 50 # tick
     target_theta = np.arctan2((waypoint[1]-robot_pose[1]),(waypoint[0]-robot_pose[0]))
-    print(target_theta)
-    while target_theta < 0:
+    print(waypoint)
+    print(target_theta/np.pi*180)
+    if target_theta < 0:
         target_theta += 2*np.pi
     #print(target_theta)
     target_diff = target_theta - robot_pose[2]
     print("target diff before adjustment: " + str(target_diff))
-    if target_diff < 0:
-        target_diff += 2*np.pi
-    elif target_diff > 2*np.pi:
-        target_diff -= 2*np.pi
+    while target_diff < 0 or target_diff > 2*np.pi:
+        if target_diff < 0:
+            target_diff += 2*np.pi
+        elif target_diff > 2*np.pi:
+            target_diff -= 2*np.pi
     # turn towards the waypoint
     print("target diff after adjustment: " + str(target_diff))
     if target_diff > np.pi:
-        turn_time = float(operate.baseline*np.abs(2*np.pi-target_diff)/(operate.scale*turn_vel*2))*Kt # replace with your calculation
+        turn_time = float(baseline*np.abs(2*np.pi-target_diff)/(scale*turn_vel*2)) # replace with your calculation
         print("Turning for right {:.2f} seconds".format(turn_time))
-        drive_meas = operate.control([0, -1], turn_time)
+        lv, rv = ppi.set_velocity([0, -1], turning_tick=turn_vel, time=turn_time)
     else:
-        turn_time = float(operate.baseline*np.abs(target_diff)/(operate.scale*turn_vel*2))*Kt # replace with your calculation
+        turn_time = float(baseline*np.abs(target_diff)/(scale*turn_vel*2)) # replace with your calculation
         print("Turning for left {:.2f} seconds".format(turn_time))
-        drive_meas = operate.control([0, 1], turn_time)
+        lv, rv = ppi.set_velocity([0, 1], turning_tick=turn_vel, time=turn_time)
     #print(lv)
     #print(rv)
-    #ppi.set_velocity([0, 0])
+    ppi.set_velocity([0, 0])
     
-    #drive_meas = measure.Drive(lv, -rv,turn_time)
-    operate.take_pic()
-    operate.update_slam(drive_meas)
-    operate.control([0, 0], 0.1)
-    robot_pose = get_robot_pose()
+    drive_meas = measure.Drive(lv, -rv,turn_time)
+    ekfvar.predict(drive_meas)
+    robot_pose = get_robot_pose(aruco_true_pos,ekfvar)
     
     # calculate distance_travel
     distance_travel = np.sqrt((robot_pose[0]-waypoint[0])**2+(robot_pose[1]-waypoint[1])**2)
     #print(distance_travel)
     
     # after turning, drive straight to the waypoint
-    drive_time = float(distance_travel/(wheel_vel*operate.scale))*Kd # replace with your calculation
+    drive_time = float(distance_travel/(wheel_vel*scale)) # replace with your calculation
     print("Driving for {:.2f} seconds".format(drive_time))
-    drive_meas = operate.control([1, 0], drive_time)
+    lv, rv = ppi.set_velocity([1, 0], tick=wheel_vel, time=drive_time)
     #print(lv)
     #print(rv)
-    #drive_meas = measure.Drive(lv, -rv,drive_time)
-    operate.take_pic()
-    operate.update_slam(drive_meas)
-    operate.control([0, 0], 0.1)
-    robot_pose = get_robot_pose()
+    drive_meas = measure.Drive(lv, -rv,drive_time)
+    ekfvar.predict(drive_meas)
+    robot_pose = get_robot_pose(aruco_true_pos, ekfvar)
+    ppi.set_velocity([0,0])
     ####################################################
     #new_pose = np.array([waypoint[0],waypoint[1],target_theta])
     #new_pose = new_pose.reshape((3,1))
@@ -583,18 +264,53 @@ def drive_to_point(waypoint, robot_pose, ekfvar):
     print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
 
 
-def get_robot_pose():
+def get_robot_pose(aruco_true_pos, ekfvar, from_true_map=False):
     ####################################################
     # TODO: replace with your codes to estimate the pose of the robot
     # We STRONGLY RECOMMEND you to use your SLAM code from M2 here
 
     # update the robot pose [x,y,theta]
-    robot_pose = operate.ekf.get_state_vector()[0:3,0]
-    while robot_pose[2] < 0 or robot_pose[2] > 2*np.pi:
-        if robot_pose[2] < 0:
-            robot_pose[2] += 2*np.pi
-        else:
-            robot_pose[2] -= 2*np.pi
+    image = ppi.get_image()
+    lms, aruco_img = aruco_det.detect_marker_positions(image)
+    # call_umeyama(lms, aruco_true_pos) -> still needs work
+    
+    
+    if lms == []:
+        return ekfvar.get_state_vector()[0:3,0]
+    else:
+        for i in range(len(lms)):
+            if lms[i].tag-1 <= 10:
+                lms[i].position = aruco_true_pos[lms[i].tag-1].reshape(2,1)
+            else:
+                pass
+        print("landmarks detected")
+        print([lm.position for lm in lms])
+        #ekfvar.add_landmarks(lms) #Is this needed
+        #ekfvar.update(lms)
+        pose = ekfvar.get_state_vector()[0:3,0]
+        print(pose)
+        '''if pose[2] > 2*np.pi:
+            pose[2] -= 2*np.pi'''
+        ekfvar.robot.state[2] = (pose[2]+2*np.pi)%(2*np.pi)
+        pose = ekfvar.get_state_vector()[0:3]
+    #print(pose)
+    '''if pose[2] > 2*np.pi:
+        pose[2] -= 2*np.pi'''
+    #pose[2] = pose[2]/180*np.pi
+    #print(pose)
+    #print(pose[2][0])
+    #pose[2] = pose[2]*180/np.pi
+    # update the robot pose [x,y,theta]
+    while pose[2][0] < 0:
+        pose[2][0] += 2*np.pi
+    # while pose[2][0] > 2*np.pi:
+    #     pose[2][0] -= 2*np.pi
+    '''while pose[2] > 2*np.pi:
+        pose[2] -= 2*np.pi'''
+
+    robot_pose = [pose[0][0], pose[1][0], pose[2][0]]
+    print("Pose: " + str(robot_pose))
+
     return robot_pose
 
 def parse_groundtruth(fname : str) -> dict:
@@ -646,7 +362,43 @@ def within_waypoint(waypoint, robot_pose):
         return True
     return False
 
-
+def rotate_to_centre(robot_pose, ekfvar):
+    robot_pose = get_robot_pose(aruco_true_pos, ekfvar)
+    # print("Robot_pose:")
+    # print(robot_pose)
+    #distance_to_goal = get_distance_to_goal(waypoint, robot_pose)
+    ppi.set_velocity([0,0])
+    turn_vel = 35
+    wheel_vel = 35 # tick
+    target_theta = np.arctan2((-robot_pose[1]),(-robot_pose[0]))#+np.pi/8
+    print(target_theta)
+    if target_theta < 0:
+        target_theta += 2*np.pi
+    #print(target_theta)
+    target_diff = target_theta - robot_pose[2]
+    #print(target_diff)
+    while target_diff < 0 or target_diff > 2*np.pi:
+        if target_diff < 0:
+            target_diff += 2*np.pi
+        elif target_diff > 0:
+            target_diff -= 2*np.pi
+    # turn towards the waypoint
+    print(target_diff)
+    if target_diff > np.pi:
+        turn_time = float(baseline*np.abs(2*np.pi-target_diff)/(scale*turn_vel*2)) # replace with your calculation
+        print("Turning right for {:.2f} seconds".format(turn_time))
+        lv, rv = ppi.set_velocity([0, -1], turning_tick=turn_vel, time=turn_time)
+    else:
+        turn_time = float(baseline*np.abs(target_diff)/(scale*turn_vel*2)) # replace with your calculation
+        print("Turning left for {:.2f} seconds".format(turn_time))
+        lv, rv = ppi.set_velocity([0, 1], turning_tick=turn_vel, time=turn_time)
+    #print(lv)
+    #print(rv)
+    ppi.set_velocity([0, 0])
+    
+    drive_meas = measure.Drive(lv, -rv,turn_time)
+    ekfvar.predict(drive_meas)
+    robot_pose = get_robot_pose(aruco_true_pos,ekfvar)
 
 # main loop
 if __name__ == "__main__":
@@ -682,10 +434,6 @@ if __name__ == "__main__":
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
-    parser.add_argument("--save_data", action='store_true')
-    parser.add_argument("--play_data", action='store_true')
-    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt')
-    parser.add_argument("--manual", action='store_false')
     args, _ = parser.parse_known_args()
     ip = args.ip
     datadir = args.calib_dir
@@ -708,10 +456,6 @@ if __name__ == "__main__":
 
     ppi = PenguinPi(args.ip,args.port)
 
-    operate = Operate(args)
-    operate.fruit_search = args.manual
-    operate.ekf_on = True
-
     # read in the true map
     fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
     search_list = read_search_list()
@@ -720,12 +464,9 @@ if __name__ == "__main__":
     #print(fruits_list)
     #print(fruits_true_pos)
     print_target_fruits_pos(search_list, fruits_list, fruits_true_pos)
-    operate.fruit_lists = fruits_list
-    operate.fruits_true_pos = fruits_true_pos
-    operate.aruco_true_pos = aruco_true_pos
 
     #x,y = 0.0,0.0
-    robot_pose = get_robot_pose()
+    robot_pose = get_robot_pose(aruco_true_pos, ekfvar)
     running = True
     # The following is only a skeleton code for semi-auto navigation
 
@@ -869,11 +610,11 @@ if __name__ == "__main__":
                 pygame.draw.line(screen, red, (scaled_x, scaled_y), (gui_y,gui_x), 5)
                 pygame.display.flip()
                 drive_to_point(waypoint,robot_pose,ekfvar)
-                robot_pose = get_robot_pose()
+                robot_pose = get_robot_pose(aruco_true_pos, ekfvar)
                 #time.sleep(0.5)
                 #rotate_to_centre(robot_pose, ekfvar)
                 #time.sleep(0.5)
-                robot_pose = get_robot_pose()
+                robot_pose = get_robot_pose(aruco_true_pos, ekfvar)
                 print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
                 #pygame.display.flip()
                 screen.fill(white)
