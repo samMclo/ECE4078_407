@@ -41,5 +41,8 @@ class Env:
 
         for i in range(int(side_length)):
             for j in range(int(side_length)):
-                self.obs.remove((bottom_left_x + i, bottom_left_y + j))
+                try:
+                    self.obs.remove((bottom_left_x + i, bottom_left_y + j))
+                except:
+                    pass
 

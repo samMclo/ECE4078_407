@@ -7,6 +7,8 @@ import cv2
 from YOLO.detector import Detector
 from sklearn.cluster import KMeans
 
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
 # list of target fruits and vegs types
 # Make sure the names are the same as the ones used in your YOLO model
 TARGET_TYPES = ['Orange', 'Lemon', 'Lime', 'tomato', 'Capsicum', 'Potato', 'Pumpkin', 'Garlic']
@@ -247,6 +249,7 @@ def parse_user_map(fname : str) -> dict:
 def create_aruco_map(est):
     aruco_dict = {}
     for i in range(1, 11):
+        print(i)
         dict_number = {f'aruco{i}_0': {'x': float(np.squeeze(est[i][0])), 'y': float(np.squeeze(est[i][1]))}}
         aruco_dict = {**aruco_dict, **dict_number}
     return aruco_dict
@@ -288,6 +291,7 @@ if __name__ == "__main__":
             detected_type_list.append(detection[0])
 
     # merge the estimations of the targets so that there are at most 3 estimations of each target type
+    print("merging")
     target_est = {}
     target_est = merge_estimations(target_pose_dict)
     target_est = {key.lower(): value for key, value in target_est.items()}

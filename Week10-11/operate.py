@@ -23,6 +23,7 @@ import slam.aruco_detector as aruco
 # import YOLO components 
 from YOLO.detector import Detector
 
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 class Operate:
     def __init__(self, args):

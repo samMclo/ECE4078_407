@@ -735,6 +735,30 @@ def rotate_to_centre(robot_pose):
     operate.update_slam(drive_meas)
     robot_pose = get_robot_pose()
 
+    turn_time = float(baseline*np.abs(np.pi/6)/(scale*turn_vel*2)) # replace with your calculation
+    print("Turning right for {:.2f} seconds".format(turn_time))
+    drive_meas = operate.control([0, -1], turn_time)
+
+    operate.take_pic()
+    operate.update_slam(drive_meas)
+    robot_pose = get_robot_pose()
+
+    turn_time = float(baseline*np.abs(np.pi/3)/(scale*turn_vel*2)) # replace with your calculation
+    print("Turning left for {:.2f} seconds".format(turn_time))
+    drive_meas = operate.control([0, 1], turn_time)
+
+    operate.take_pic()
+    operate.update_slam(drive_meas)
+    robot_pose = get_robot_pose()
+
+    turn_time = float(baseline*np.abs(np.pi/6)/(scale*turn_vel*2)) # replace with your calculation
+    print("Turning right for {:.2f} seconds".format(turn_time))
+    drive_meas = operate.control([0, -1], turn_time)
+
+    operate.take_pic()
+    operate.update_slam(drive_meas)
+    robot_pose = get_robot_pose()
+
 def rotate_away(waypoint, robot_pose):
     robot_pose = get_robot_pose()
     # print("Robot_pose:")
@@ -925,7 +949,7 @@ if __name__ == "__main__":
         rotated_robot_img = pygame.transform.rotate(original_robot_img, int(np.squeeze(robot_pose[2])/np.pi*180))
         rotated_rect = rotated_robot_img.get_rect()
         scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
-        rotated_rect.center = (scaled_x, scaled_y)
+        rotated_rect.center = (scaled_x+int(18*np.sin(robot_pose[2])), scaled_y+int(18*np.cos(robot_pose[2])))
         # Draw the rotated robot image
         #true_waypoints = []
         waypoints = [(1500,1500)]
@@ -942,7 +966,7 @@ if __name__ == "__main__":
         for i in range(len(fruits_true_pos)):
             #print(aruco_true_pos[i,:][0])
             #pygame.draw.circle(screen, yellow, (world_to_gui(fruits_true_pos[i,:][1]), world_to_gui(fruits_true_pos[j,:][0])), 133)
-            screen.blit(durian_img, (world_to_gui(fruits_true_pos[i,:][1]), world_to_gui(fruits_true_pos[i,:][0])))
+            screen.blit(durian_img, (world_to_gui(fruits_true_pos[i,:][1])-11, world_to_gui(fruits_true_pos[i,:][0])-11))
         for i in range(len(aruco_true_pos)):
             #print(aruco_true_pos[i,:][0])
             pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[i,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[i,:][0])- ARUCO_SCREEN_SIZE//2, ARUCO_SCREEN_SIZE,  ARUCO_SCREEN_SIZE))
@@ -989,7 +1013,7 @@ if __name__ == "__main__":
             screen.blit(text_surface, (int(waypoints[i+1][1]/30*8), int(waypoints[i+1][0]/30*8)-100))
             for j in range(len(fruits_true_pos)):
             #print(aruco_true_pos[i,:][0])
-                screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])))
+                screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1])-11, world_to_gui(fruits_true_pos[j,:][0])-11))
             screen.blit(rotated_robot_img, rotated_rect)
             for j in range(len(aruco_true_pos)):
                 pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[j,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[j,:][0])- ARUCO_SCREEN_SIZE//2,  ARUCO_SCREEN_SIZE,  ARUCO_SCREEN_SIZE))
@@ -1012,7 +1036,7 @@ if __name__ == "__main__":
                 rotated_robot_img = pygame.transform.rotate(original_robot_img, robot_pose[2]/np.pi*180)
                 rotated_rect = rotated_robot_img.get_rect()
                 scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
-                rotated_rect.center = (scaled_x, scaled_y)
+                rotated_rect.center = (scaled_x+int(18*np.sin(robot_pose[2])), scaled_y+int(18*np.cos(robot_pose[2])))
                 # Draw the rotated robot image
                 pygame.draw.circle(screen, yellow, (int(waypoints[i+1][1]/30*8), int(waypoints[i+1][0]/30*8)), 133)
                 text_surface = font.render(str(i+1), True, red)
@@ -1020,7 +1044,7 @@ if __name__ == "__main__":
                 for k in range(len(fruits_true_pos)):
                 #print(aruco_true_pos[i,:][0])
                     #pygame.draw.circle(screen, yellow, (world_to_gui(fruits_true_pos[k,:][1]), world_to_gui(fruits_true_pos[k,:][0])), 133)
-                    screen.blit(durian_img, (world_to_gui(fruits_true_pos[k,:][1]), world_to_gui(fruits_true_pos[k,:][0])))
+                    screen.blit(durian_img, (world_to_gui(fruits_true_pos[k,:][1])-11, world_to_gui(fruits_true_pos[k,:][0])-11))
                 screen.blit(rotated_robot_img, rotated_rect)
                 for k in range(len(aruco_true_pos)):
                     #print(aruco_true_pos[i,:][0])
@@ -1050,22 +1074,23 @@ if __name__ == "__main__":
             rotated_robot_img = pygame.transform.rotate(original_robot_img, robot_pose[2]/np.pi*180)
             rotated_rect = rotated_robot_img.get_rect()
             scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
-            rotated_rect.center = (scaled_x, scaled_y)
+            rotated_rect.center = (scaled_x+int(18*np.sin(robot_pose[2])), scaled_y+int(18*np.cos(robot_pose[2])))
             # Draw the rotated robot image
-            if i < 4:
+            if i < (len(waypoints)-2):
                 pygame.draw.circle(screen, yellow, (int(waypoints[i+2][1]/30*8), int(waypoints[i+2][0]/30*8)), 133)
                 text_surface = font.render(str(i+2), True, red)
                 screen.blit(text_surface, (int(waypoints[i+2][1]/30*8), int(waypoints[i+2][0]/30*8)-100))
             for j in range(len(fruits_true_pos)):
             #print(aruco_true_pos[i,:][0])
                 #pygame.draw.circle(screen, yellow, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])), 133)
-                screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])))
+                screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1])-11, world_to_gui(fruits_true_pos[j,:][0])-11))
             for j in range(len(aruco_true_pos)):
                 #print(aruco_true_pos[i,:][0])
+                pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[j,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[j,:][0])- ARUCO_SCREEN_SIZE//2, ARUCO_SCREEN_SIZE, ARUCO_SCREEN_SIZE))
                 text_content = str(j+1)
                 text_surface = font.render(text_content, True, white)
                 screen.blit(text_surface, (world_to_gui(aruco_true_pos[j,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[j,:][0])- ARUCO_SCREEN_SIZE//2))
-                pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[j,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[j,:][0])- ARUCO_SCREEN_SIZE//2, ARUCO_SCREEN_SIZE, ARUCO_SCREEN_SIZE))
+                
 
             screen.blit(rotated_robot_img, rotated_rect)
             pygame.display.flip()
@@ -1108,6 +1133,6 @@ if __name__ == "__main__":
     text_surface = font.render(text_content, True, black)
     screen.blit(text_surface, (0, 200))
     pygame.display.update()
-    time.sleep(30)
+    #time.sleep(30)
 
     pygame.quit()

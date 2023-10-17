@@ -752,7 +752,7 @@ if __name__ == "__main__":
     rotated_robot_img = pygame.transform.rotate(original_robot_img, int(np.squeeze(robot_pose[2])/np.pi*180))
     rotated_rect = rotated_robot_img.get_rect()
     scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
-    rotated_rect.center = (scaled_x, scaled_y)
+    rotated_rect.center = (scaled_x+int(18*np.sin(robot_pose[2])), scaled_y+int(18*np.cos(robot_pose[2])))
     # Draw the rotated robot image
     waypoints = [(1500,1500)]
     for fruit in search_list:
@@ -769,7 +769,7 @@ if __name__ == "__main__":
     for i in range(len(fruits_true_pos)):
         #print(aruco_true_pos[i,:][0])
         #pygame.draw.circle(screen, yellow, (world_to_gui(fruits_true_pos[i,:][1]), world_to_gui(fruits_true_pos[j,:][0])), 133)
-        screen.blit(durian_img, (world_to_gui(fruits_true_pos[i,:][1]), world_to_gui(fruits_true_pos[i,:][0])))
+        screen.blit(durian_img, (world_to_gui(fruits_true_pos[i,:][1])-11, world_to_gui(fruits_true_pos[i,:][0])-11))
     for i in range(len(aruco_true_pos)):
         #print(aruco_true_pos[i,:][0])
         pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[i,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[i,:][0])- ARUCO_SCREEN_SIZE//2, ARUCO_SCREEN_SIZE,  ARUCO_SCREEN_SIZE))
@@ -809,10 +809,10 @@ if __name__ == "__main__":
                     #print((world_to_gui(true_waypoints[i][1]), world_to_gui(true_waypoints[i][0])))
                     pygame.draw.circle(screen, yellow, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)), 133)
                     text_surface = font.render(str(i), True, red)
-                    screen.blit(text_surface, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)-150))
+                    screen.blit(text_surface, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)-100))
                 for j in range(len(fruits_true_pos)):
                 #print(aruco_true_pos[i,:][0])
-                    screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])))
+                    screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1])-11, world_to_gui(fruits_true_pos[j,:][0])-11))
                 
                 for j in range(len(aruco_true_pos)):
                     pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[j,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[j,:][0])- ARUCO_SCREEN_SIZE//2,  ARUCO_SCREEN_SIZE,  ARUCO_SCREEN_SIZE))
@@ -845,19 +845,19 @@ if __name__ == "__main__":
                 rotated_robot_img = pygame.transform.rotate(original_robot_img, robot_pose[2]/np.pi*180)
                 rotated_rect = rotated_robot_img.get_rect()
                 scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
-                rotated_rect.center = (scaled_x, scaled_y)
+                rotated_rect.center = (scaled_x+int(18*np.sin(robot_pose[2])), scaled_y+int(18*np.cos(robot_pose[2])))
                 # Draw the rotated robot image
 
                 for i in range(1,len(waypoints)):
                     #print((world_to_gui(true_waypoints[i][1]), world_to_gui(true_waypoints[i][0])))
                     pygame.draw.circle(screen, yellow, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)), 133)
                     text_surface = font.render(str(i), True, red)
-                    screen.blit(text_surface, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)-150))
+                    screen.blit(text_surface, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)-100))
                 
                 for k in range(len(fruits_true_pos)):
                 #print(aruco_true_pos[i,:][0])
                     #pygame.draw.circle(screen, yellow, (world_to_gui(fruits_true_pos[k,:][1]), world_to_gui(fruits_true_pos[k,:][0])), 133)
-                    screen.blit(durian_img, (world_to_gui(fruits_true_pos[k,:][1]), world_to_gui(fruits_true_pos[k,:][0])))
+                    screen.blit(durian_img, (world_to_gui(fruits_true_pos[k,:][1])-11, world_to_gui(fruits_true_pos[k,:][0])-11))
                 for k in range(len(aruco_true_pos)):
                     #print(aruco_true_pos[i,:][0])
                     pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[k,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[k,:][0])- ARUCO_SCREEN_SIZE//2,  ARUCO_SCREEN_SIZE,  ARUCO_SCREEN_SIZE))
@@ -867,29 +867,24 @@ if __name__ == "__main__":
                 pygame.display.flip()
                 drive_to_point(waypoint,robot_pose,ekfvar)
                 robot_pose = get_robot_pose()
-                #time.sleep(0.5)
-                #rotate_to_centre(robot_pose, ekfvar)
-                #time.sleep(0.5)
-                robot_pose = get_robot_pose()
                 print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
-                #pygame.display.flip()
                 screen.fill(white)
                     # Rotate the robot image
                 rotated_robot_img = pygame.transform.rotate(original_robot_img, robot_pose[2]/np.pi*180)
                 rotated_rect = rotated_robot_img.get_rect()
                 scaled_x, scaled_y = world_to_gui(robot_pose[1]), world_to_gui(robot_pose[0])
-                rotated_rect.center = (scaled_x, scaled_y)
+                rotated_rect.center = (scaled_x+int(18*np.sin(robot_pose[2])), scaled_y+int(18*np.cos(robot_pose[2])))
                 # Draw the rotated robot image
                 #pygame.draw.circle(screen, yellow, (int(waypoints[i+1][1]/30*8), int(waypoints[i+1][0]/30*8)), 133)
                 for i in range(1,len(waypoints)):
                     #print((world_to_gui(true_waypoints[i][1]), world_to_gui(true_waypoints[i][0])))
                     pygame.draw.circle(screen, yellow, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)), 133)
                     text_surface = font.render(str(i), True, red)
-                    screen.blit(text_surface, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)-150))
+                    screen.blit(text_surface, (int(waypoints[i][1]/30*8), int(waypoints[i][0]/30*8)-100))
                 for j in range(len(fruits_true_pos)):
                 #print(aruco_true_pos[i,:][0])
                     #pygame.draw.circle(screen, yellow, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])), 133)
-                    screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1]), world_to_gui(fruits_true_pos[j,:][0])))
+                    screen.blit(durian_img, (world_to_gui(fruits_true_pos[j,:][1])-11, world_to_gui(fruits_true_pos[j,:][0])-11))
                 for j in range(len(aruco_true_pos)):
                     #print(aruco_true_pos[i,:][0])
                     pygame.draw.rect(screen, black, (world_to_gui(aruco_true_pos[j,:][1])- ARUCO_SCREEN_SIZE//2, world_to_gui(aruco_true_pos[j,:][0])- ARUCO_SCREEN_SIZE//2, ARUCO_SCREEN_SIZE, ARUCO_SCREEN_SIZE))
