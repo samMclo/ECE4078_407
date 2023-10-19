@@ -196,42 +196,42 @@ def merge_estimations(target_pose_dict):
         # except here is to deal with list with lenght of 1 ( out of indices problem)
         try:
             target_est['capsicum_' +
-                       str(i)] = {'y': capsicum_est[i][0], 'x': capsicum_est[i][1]}
+                       str(i)] = {'y': float(np.clip(capsicum_est[i][0],-1.5,1.5)), 'x': float(np.clip(capsicum_est[i][1],-1.5,1.5))}
         except:
             pass
         try:
             target_est['garlic_' +
-                       str(i)] = {'y': garlic_est[i][0], 'x': garlic_est[i][1]}
+                       str(i)] = {'y': float(np.clip(garlic_est[i][0],-1.5,1.5)), 'x': float(np.clip(garlic_est[i][1],-1.5,1.5))}
         except:
             pass
         try:
             target_est['lemon_' +
-                       str(i)] = {'y': lemon_est[i][0], 'x': lemon_est[i][1]}
+                       str(i)] = {'y': float(np.clip(lemon_est[i][0],-1.5,1.5)), 'x': float(np.clip(lemon_est[i][1],-1.5,1.5))}
         except:
             pass
         try:
             target_est['lime_' +
-                       str(i)] = {'y': lime_est[i][0], 'x': lime_est[i][1]}
+                       str(i)] = {'y': float(np.clip(lime_est[i][0],-1.5,1.5)), 'x': float(np.clip(lime_est[i][1],-1.5,1.5))}
         except:
             pass
         try:
             target_est['orange_' +
-                       str(i)] = {'y': orange_est[i][0], 'x': orange_est[i][1]}
+                       str(i)] = {'y': float(np.clip(orange_est[i][0],-1.5,1.5)), 'x': float(np.clip(orange_est[i][1],-1.5,1.5))}
         except:
             pass
         try:
             target_est['potato_' +
-                       str(i)] = {'y': potato_est[i][0], 'x': potato_est[i][1]}
+                       str(i)] = {'y': float(np.clip(potato_est[i][0],-1.5,1.5)), 'x': float(np.clip(potato_est[i][1],-1.5,1.5))}
         except:
             pass
         try:
             target_est['pumpkin_' +
-                       str(i)] = {'y': pumpkin_est[i][0], 'x': pumpkin_est[i][1]}
+                       str(i)] = {'y': float(np.clip(pumpkin_est[i][0],-1.5,1.5)), 'x': float(np.clip(pumpkin_est[i][1],-1.5,1.5))}
         except:
             pass
         try:
             target_est['tomato_' +
-                       str(i)] = {'y': tomato_est[i][0], 'x': tomato_est[i][1]}
+                       str(i)] = {'y': float(np.clip(tomato_est[i][0],-1.5,1.5)), 'x': float(np.clip(tomato_est[i][1],-1.5,1.5))}
         except:
             pass
     ###########################################
@@ -249,13 +249,17 @@ def parse_user_map(fname : str) -> dict:
 def create_aruco_map(est):
     aruco_dict = {}
     for i in range(1, 11):
-        print(i)
-        dict_number = {f'aruco{i}_0': {'x': float(np.squeeze(est[i][0])), 'y': float(np.squeeze(est[i][1]))}}
-        aruco_dict = {**aruco_dict, **dict_number}
+        #print(i)
+        try:
+            dict_number = {f'aruco{i}_0': {'x': float(np.squeeze(est[i][0])), 'y': float(np.squeeze(est[i][1]))}}
+            aruco_dict = {**aruco_dict, **dict_number}
+        except:
+            pass
     return aruco_dict
 
 # main loop
 if __name__ == "__main__":
+    run_number = str(input("Enter run number: "))
     script_dir = os.path.dirname(os.path.abspath(__file__))     # get current script directory (TargetPoseEst.py)
 
     # read in camera matrix
@@ -291,7 +295,7 @@ if __name__ == "__main__":
             detected_type_list.append(detection[0])
 
     # merge the estimations of the targets so that there are at most 3 estimations of each target type
-    print("merging")
+    #print("merging")
     target_est = {}
     target_est = merge_estimations(target_pose_dict)
     target_est = {key.lower(): value for key, value in target_est.items()}
@@ -302,9 +306,14 @@ if __name__ == "__main__":
     aruco_map = create_aruco_map(aruco_est)
     with open(f'{script_dir}/lab_output/targets.txt', 'w') as fo:
         json.dump(target_est, fo, indent=4)
+    with open(f'{script_dir}/Final_Maps_407/targets_run{run_number}_407.txt', 'w') as fo:
+        json.dump(target_est, fo, indent=4)
     conc_map = {**aruco_map, **target_est}
     print('Estimations saved!')
     with open(f'{script_dir}/Map.txt', 'w') as fo:
         json.dump(conc_map, fo, indent=4)
     print('Peta terbuat!')
-    
+    with open(f'{script_dir}/lab_output/slam.txt', 'r') as f:
+        usr_dict = ast.literal_eval(f.read())
+    with open(f'{script_dir}/Final_Maps_407/slam_run{run_number}_407.txt', 'w') as fo:
+        json.dump(usr_dict, fo, indent=1)

@@ -263,13 +263,13 @@ class Operate:
                 self.turning_tick=5
                 self.command['motion'] = [0, -1] # TODO: replace with your code to make the robot turn right
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_COMMA:
-                self.tick=20
-                self.turning_tick=8
-                self.command['motion'] = [-1, -1] # TODO: replace with your code to make the robot turn left
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_PERIOD:
-                self.tick=20
-                self.turning_tick=8
+                self.tick=10
+                self.turning_tick=10
                 self.command['motion'] = [-1, 1] # TODO: replace with your code to make the robot turn left
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_PERIOD:
+                self.tick=10
+                self.turning_tick=10
+                self.command['motion'] = [-1, -1] # TODO: replace with your code to make the robot turn left
             if event.type == pygame.KEYDOWN and event.key == pygame.K_t:
                 self.tick=45
                 self.turning_tick=20

@@ -55,7 +55,7 @@ class Operate:
         self.aruco_det = aruco.aruco_detector(
             self.ekf.robot, marker_length = 0.07) # size of the ARUCO markers
         self.tick=50
-        self.turning_tick=20
+        self.turning_tick=25
 
         if args.save_data:
             self.data = dh.DatasetWriter('record')
@@ -1002,7 +1002,7 @@ if __name__ == "__main__":
                     #print("break")
                     break
             smoothed_path = smooth_path(path)
-            print(smoothed_path)
+            #print(smoothed_path)
             #if distance_waypoint_to_waypoint(smoothed_path[-1], waypoints[i+1]) < 410:
                 #smoothed_path[-1] = calc_new_waypoint2(smoothed_path[-2], smoothed_path[-1])
             #print(smoothed_path)
