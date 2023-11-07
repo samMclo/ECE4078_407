@@ -23,6 +23,7 @@ import slam.aruco_detector as aruco
 # import YOLO components 
 from YOLO.detector import Detector
 
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 class Operate:
     def __init__(self, args):
@@ -44,7 +45,7 @@ class Operate:
         self.aruco_det = aruco.aruco_detector(
             self.ekf.robot, marker_length=0.07)  # size of the ARUCO markers
         self.tick=25
-        self.turning_tick=5
+        self.turning_tick=10
 
         if args.save_data:
             self.data = dh.DatasetWriter('record')
@@ -262,31 +263,31 @@ class Operate:
                 self.turning_tick=5
                 self.command['motion'] = [0, -1] # TODO: replace with your code to make the robot turn right
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_COMMA:
-                self.tick=20
-                self.turning_tick=8
-                self.command['motion'] = [-1, -1] # TODO: replace with your code to make the robot turn left
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_PERIOD:
-                self.tick=20
-                self.turning_tick=8
+                self.tick=10
+                self.turning_tick=10
                 self.command['motion'] = [-1, 1] # TODO: replace with your code to make the robot turn left
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_PERIOD:
+                self.tick=10
+                self.turning_tick=10
+                self.command['motion'] = [-1, -1] # TODO: replace with your code to make the robot turn left
             if event.type == pygame.KEYDOWN and event.key == pygame.K_t:
                 self.tick=45
-                self.turning_tick=10
+                self.turning_tick=20
                 self.command['motion'] = [1, 0] # TODO: replace with your code to make the robot drive forward
             # drive backward
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_g:
                 self.tick=45
-                self.turning_tick=10
+                self.turning_tick=20
                 self.command['motion'] = [-1, 0] # TODO: replace with your code to make the robot drive backward
             # turn left
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_f:
                 self.tick=45
-                self.turning_tick=10
+                self.turning_tick=20
                 self.command['motion'] = [0, 1] # TODO: replace with your code to make the robot turn left
             # drive right
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_h:
                 self.tick=45
-                self.turning_tick=10
+                self.turning_tick=20
                 self.command['motion'] = [0, -1] # TODO: replace with your code to make the robot turn right
             ####################################################
             # stop

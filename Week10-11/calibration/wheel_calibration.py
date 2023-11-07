@@ -15,7 +15,7 @@ def calibrateWheelRadius():
     ##########################################
     # Feel free to change the range / step
     ##########################################
-    wheel_velocities_range = range(20, 80, 10)
+    wheel_velocities_range = range(20, 51, 5)
     delta_times = []
 
     for wheel_vel in wheel_velocities_range:
@@ -60,7 +60,7 @@ def calibrateBaseline(scale):
     ##########################################
     # Feel free to change the range / step
     ##########################################
-    wheel_velocities_range = range(5, 60, 10)
+    wheel_velocities_range = range(10, 31, 5)
     delta_times = []
 
     for wheel_vel in wheel_velocities_range:
@@ -105,8 +105,8 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ip", metavar='', type=str, default='localhost')
-    parser.add_argument("--port", metavar='', type=int, default=40000)
+    parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
+    parser.add_argument("--port", metavar='', type=int, default=8080)
     args, _ = parser.parse_known_args()
 
     ppi = PenguinPi(args.ip,args.port)
